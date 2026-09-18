@@ -1,0 +1,103 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  --line: #888;
+  --given: canvastext;
+  --filled: #2a7fff;
+  --last: rgba(42, 127, 255, 0.25);
+  --wrong: rgba(220, 50, 50, 0.35);
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+}
+
+header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+}
+
+.meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+}
+
+.layout {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.board {
+  border-collapse: collapse;
+  border: 3px solid var(--line);
+}
+
+.cell {
+  width: 2.6rem;
+  height: 2.6rem;
+  text-align: center;
+  font-size: 1.3rem;
+  border: 1px solid var(--line);
+}
+
+.cell.box-right {
+  border-right: 3px solid var(--line);
+}
+
+.cell.box-bottom {
+  border-bottom: 3px solid var(--line);
+}
+
+.cell.given {
+  font-weight: 700;
+  color: var(--given);
+}
+
+.cell.filled {
+  color: var(--filled);
+}
+
+.cell.last {
+  background: var(--last);
+}
+
+.cell.wrong {
+  background: var(--wrong);
+  color: #c02020;
+  text-decoration: line-through;
+}
+
+.log {
+  margin: 0;
+  padding-left: 1.5rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  min-width: 24rem;
+}
+
+.log .wrong,
+.log .error {
+  color: #c02020;
+}
+
+.log .move {
+  color: var(--filled);
+}
+
+.status.game-won {
+  color: #1a9a3a;
+  font-weight: 700;
+}
+
+.status.game-lost {
+  color: #c02020;
+  font-weight: 700;
+}

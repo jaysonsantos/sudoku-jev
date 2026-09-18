@@ -1,0 +1,55 @@
+# Run with prek: `prek run --all-files`. Every tool comes from flake.nix, so hooks are language: system.
+# Excluded: pnpm-lock.yaml and CHANGELOG.md are generated.
+exclude: ^(pnpm-lock\.yaml|CHANGELOG\.md|flake\.lock)$
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: biome
+        name: biome
+        entry: biome ci .
+        language: system
+        pass_filenames: false
+        files: \.(ts|tsx|js|json|jsonc|css)$
+      - id: taplo
+        name: taplo
+        entry: taplo fmt --check
+        language: system
+        types: [toml]
+      - id: typos
+        name: typos
+        entry: typos
+        language: system
+      - id: nixfmt
+        name: nixfmt
+        entry: nixfmt --check
+        language: system
+        files: \.nix$
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+      - id: hadolint
+        name: hadolint
+        entry: hadolint
+        language: system
+        files: ^Dockerfile$
+      - id: gitleaks
+        name: gitleaks
+        entry: gitleaks git --no-banner --redact
+        language: system
+        pass_filenames: false
+      - id: editorconfig-checker
+        name: editorconfig-checker
+        entry: editorconfig-checker
+        language: system
+        exclude: ^(LICENSE)$

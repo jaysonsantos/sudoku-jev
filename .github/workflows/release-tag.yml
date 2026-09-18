@@ -1,0 +1,34 @@
+name: release-tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release. Empty lets git-cliff compute it from the commits.
+        required: false
+        default: ""
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: tag
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          # A deploy key, so the pushed tag starts release.yml. GITHUB_TOKEN starts no workflow.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+      - uses: DeterminateSystems/nix-installer-action@v20
+      - name: Set the git identity
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+      - run: nix develop --command scripts/release.sh "${{ inputs.version }}"
+      - run: git push --follow-tags
