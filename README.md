@@ -93,6 +93,8 @@ pnpm cf:deploy
 
 `OPENROUTER_URL` and `JEV_MODEL` are Wrangler vars with the same defaults as the Node server. After deploy the browser talks to `wss://<worker-host>/ws`.
 
+A preview upload (`wrangler versions upload`, used by Workers Builds on non-`main` branches) cannot create the `GameSession` namespace. The first production `wrangler deploy` (or the Workers Build on `main`) provisions the Durable Object and binds `GAME_SESSION`.
+
 ## Release
 
 Commits follow Conventional Commits. The version and the changelog come from the history.
