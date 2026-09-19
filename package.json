@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm run --parallel \"/^dev:.*/\"",
+    "dev": "pnpm run \"/^dev:.*/\"",
     "dev:backend": "node --watch backend/src/main.ts",
     "dev:frontend": "vite",
     "build": "vite build",
