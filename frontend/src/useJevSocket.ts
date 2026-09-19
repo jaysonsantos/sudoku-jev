@@ -57,7 +57,20 @@ export function useJevSocket(onMessage: (message: ServerMessage) => void): JevSo
       if (timer !== null) {
         clearTimeout(timer);
       }
-      socketRef.current?.close();
+      const socket = socketRef.current;
+      socketRef.current = null;
+      if (socket === null) {
+        return;
+      }
+      socket.onmessage = null;
+      socket.onclose = null;
+      if (socket.readyState === WebSocket.CONNECTING) {
+        // A close during CONNECTING logs a browser warning. Close once the handshake ends.
+        socket.onopen = () => socket.close();
+        socket.onerror = () => socket.close();
+        return;
+      }
+      socket.close();
     };
   }, []);
 
