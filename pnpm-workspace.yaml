@@ -1,3 +1,4 @@
 # Single package. The file pins pnpm settings only.
 onlyBuiltDependencies:
   - esbuild
+  - workerd

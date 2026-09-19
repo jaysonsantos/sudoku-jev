@@ -1,12 +1,33 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sudoku-jev",
+  "main": "cloudflare/src/worker.ts",
   "compatibility_date": "2026-09-19",
   "observability": {
     "enabled": true
   },
+  // `/ws` and `/healthz` must match WS_PATH and HEALTH_PATH in shared/src/constants.ts.
   "assets": {
     "directory": "./frontend/dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/ws", "/healthz"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GAME_SESSION",
+        "class_name": "GameSession"
+      }
+    ]
+  },
+  "exports": {
+    "GameSession": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
+  "vars": {
+    "OPENROUTER_URL": "https://openrouter.ai/api/alpha/decisions",
+    "JEV_MODEL": "typesafe/jev-1.13"
   }
 }

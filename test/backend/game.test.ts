@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { offeredMoves, parseStateMessage } from "../../backend/src/game.ts";
+import { answerState, offeredMoves, parseStateMessage } from "../../backend/src/game.ts";
+import type { DecideClient } from "../../backend/src/jev.ts";
 import type { StateMessage } from "../../shared/src/index.ts";
 import { emptyBoard, GAME_STATUS, MESSAGE_TYPE } from "../../shared/src/index.ts";
 
@@ -27,4 +28,37 @@ test("offeredMoves drops rejected moves", () => {
   const moves = offeredMoves(state());
   assert.equal(moves.length, 728);
   assert.ok(!moves.some((m) => m.row === 0 && m.col === 0 && m.value === 1));
+});
+
+test("answerState returns finished when the game is not playing", async () => {
+  const client: DecideClient = {
+    decide: async () => {
+      throw new Error("should not ask");
+    },
+  };
+  const answer = await answerState(client, { ...state(), status: GAME_STATUS.won });
+  assert.equal(answer.type, MESSAGE_TYPE.finished);
+  if (answer.type === MESSAGE_TYPE.finished) {
+    assert.match(answer.reason, /won/);
+  }
+});
+
+test("answerState maps a model choice to a decision", async () => {
+  const move = { row: 0, col: 0, value: 2 };
+  const client: DecideClient = {
+    decide: async () => ({
+      move,
+      probability: 0.9,
+      confidence: 0.8,
+      options_considered: 728,
+      questions_asked: 3,
+    }),
+  };
+  const answer = await answerState(client, state());
+  assert.equal(answer.type, MESSAGE_TYPE.decision);
+  if (answer.type === MESSAGE_TYPE.decision) {
+    assert.deepEqual(answer.move, move);
+    assert.equal(answer.probability, 0.9);
+    assert.equal(answer.questions_asked, 3);
+  }
 });

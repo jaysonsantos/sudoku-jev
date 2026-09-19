@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: DeterminateSystems/nix-installer-action@v20
-      - run: nix develop --command bash -c "pnpm install --frozen-lockfile && pnpm build"
+      - run: nix develop --command bash -c "pnpm install --frozen-lockfile && pnpm build && pnpm exec wrangler deploy --dry-run"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:

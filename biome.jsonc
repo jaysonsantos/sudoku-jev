@@ -4,6 +4,7 @@
     "includes": [
       "**",
       "!**/.direnv",
+      "!**/.wrangler",
       "!**/node_modules",
       "!**/frontend/dist",
       "!**/pnpm-lock.yaml",

@@ -62,6 +62,11 @@ export interface Decision {
   options_considered: number;
   questions_asked: number;
 }
+
+export interface DecideClient {
+  decide(board: Board, moves: Move[]): Promise<Decision | null>;
+}
+
 // endregion: request types
 
 // region: option ids
@@ -174,17 +179,18 @@ export interface JevClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-export class JevClient {
+export class JevClient implements DecideClient {
   private readonly apiKey: string;
   private readonly url: string;
   private readonly model: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: typeof fetch | null;
 
   constructor(options: JevClientOptions) {
     this.apiKey = options.apiKey;
     this.url = options.url;
     this.model = options.model;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Workers `fetch` throws if it is stored and called later. Tests pass a fake.
+    this.fetchImpl = options.fetchImpl ?? null;
   }
 
   /** Asks Jev for one move out of `moves`. Returns null when the model picked nothing usable. */
@@ -193,7 +199,7 @@ export class JevClient {
       return null;
     }
     const request = buildRequest(this.model, board, moves);
-    const response = await this.fetchImpl(this.url, {
+    const init: RequestInit = {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -201,7 +207,8 @@ export class JevClient {
         [HTTP_TITLE_HEADER]: APP_TITLE,
       },
       body: JSON.stringify(request),
-    });
+    };
+    const response = this.fetchImpl === null ? await fetch(this.url, init) : await this.fetchImpl(this.url, init);
     if (!response.ok) {
       const text = await response.text();
       throw new JevError(`OpenRouter answered ${response.status}: ${text}`, response.status);
