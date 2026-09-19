@@ -62,7 +62,36 @@ scripts/test.sh   # typecheck and node --test
 scripts/all.sh    # lint, test, build
 ```
 
-Layout: `shared/` holds the sudoku rules and message types, `backend/` the Node server, `frontend/` the React app, `test/` the suites. See `AGENTS.md` for the rules of the repository.
+Layout: `shared/` holds the sudoku rules and message types, `backend/` the Node server, `cloudflare/` the Worker and Durable Object, `frontend/` the React app, `test/` the suites. See `AGENTS.md` for the rules of the repository.
+
+## Cloudflare
+
+The SPA needs a Worker to terminate `/ws`. Cloudflare Workflows cannot hold a WebSocket; this app uses a Durable Object instead.
+
+| Item | Value |
+|---|---|
+| Route | `/ws` (same path the browser already opens) |
+| Health | `/healthz` |
+| Binding | `GAME_SESSION` |
+| Class | `GameSession` |
+| Isolation | one Durable Object per browser session (`getByName` with a new UUID) |
+
+`wrangler.jsonc` runs the Worker first for `/ws` and `/healthz`. Everything else is the Vite SPA in `frontend/dist`.
+
+```sh
+pnpm build
+cp .dev.vars.example .dev.vars   # set OPENROUTER_API_KEY for local wrangler
+pnpm cf:dev                      # wrangler dev, SPA + /ws
+```
+
+Deploy:
+
+```sh
+pnpm exec wrangler secret put OPENROUTER_API_KEY
+pnpm cf:deploy
+```
+
+`OPENROUTER_URL` and `JEV_MODEL` are Wrangler vars with the same defaults as the Node server. After deploy the browser talks to `wss://<worker-host>/ws`.
 
 ## Release
 

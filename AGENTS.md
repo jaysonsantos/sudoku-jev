@@ -8,10 +8,11 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 |---|---|
 | `shared/src/` | Sudoku rules, generator, solver, protocol types. Used by both trees. |
 | `backend/src/` | Node HTTP and websocket server. Asks Jev for one move per state. |
+| `cloudflare/src/` | Worker plus Durable Object. Terminates `/ws` on Cloudflare. Reuses `backend/` Jev code. |
 | `frontend/src/` | React single page app. Makes the puzzle, keeps the solution, applies moves. The loop runs only after the Solve click. |
-| `test/` | `node --test` suites for `shared/` and `backend/`. |
+| `test/` | `node --test` suites for `shared/`, `backend/`, and `cloudflare/`. |
 | `scripts/` | `lint.sh`, `test.sh`, `all.sh`, `release.sh`. CI runs the same scripts. |
-| `frontend/dist/` | Vite build output. The backend serves it. Not committed. |
+| `frontend/dist/` | Vite build output. The Node server and the Worker assets serve it. Not committed. |
 | `docs/` | Standalone HTML explainer of the Jev loop, served by GitHub Pages from `main`. |
 
 ## Commands
@@ -21,10 +22,12 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 | Dev shell | `direnv allow` (reads `.env` and `flake.nix`) |
 | Install | `pnpm install --frozen-lockfile` |
 | Dev servers | `pnpm dev` (backend on 8080, Vite on 5173 with a proxy for `/ws`) |
+| Cloudflare local | `pnpm cf:dev` (`wrangler dev` after a frontend build) |
 | Lint | `scripts/lint.sh` (`prek run --all-files`) |
 | Test | `scripts/test.sh` (typecheck plus `node --test`) |
 | Build | `pnpm build` |
 | Run | `pnpm start` |
+| Cloudflare deploy | `pnpm cf:deploy` (put `OPENROUTER_API_KEY` with `wrangler secret put` first) |
 | Release | `scripts/release.sh`, then `git push --follow-tags` |
 
 ## Rules
@@ -44,3 +47,7 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 - One choice question holds at most 255 options. The backend splits the legal moves into batches and sends every batch in one request.
 - Option ids are `row_R_col_C_value_V`, one based. The backend parses them back into moves.
 - Jev counts and calculates poorly. It reads `cell_candidates` in each option, which the code computes.
+
+## Cloudflare
+
+Cloudflare Workflows cannot host a WebSocket. The Worker serves `/healthz` and upgrades `/ws` to a `GameSession` Durable Object (binding `GAME_SESSION`, one object per browser session, hibernation API). The frontend still opens same-origin `/ws`.

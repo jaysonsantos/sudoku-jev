@@ -62,6 +62,11 @@ export interface Decision {
   options_considered: number;
   questions_asked: number;
 }
+
+export interface DecideClient {
+  decide(board: Board, moves: Move[]): Promise<Decision | null>;
+}
+
 // endregion: request types
 
 // region: option ids
@@ -174,7 +179,7 @@ export interface JevClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-export class JevClient {
+export class JevClient implements DecideClient {
   private readonly apiKey: string;
   private readonly url: string;
   private readonly model: string;

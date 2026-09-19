@@ -1,6 +1,6 @@
 import type { Move, ServerMessage, StateMessage } from "../../shared/src/index.ts";
 import { GAME_STATUS, isValidBoardShape, legalMoves, MESSAGE_TYPE, sameMove } from "../../shared/src/index.ts";
-import type { JevClient } from "./jev.ts";
+import type { DecideClient } from "./jev.ts";
 
 // region: parsing
 export function parseStateMessage(raw: string): StateMessage {
@@ -42,7 +42,7 @@ export function offeredMoves(state: StateMessage): Move[] {
   return legalMoves(state.board).filter((move) => !state.rejected.some((rejected) => sameMove(rejected, move)));
 }
 
-export async function answerState(client: JevClient, state: StateMessage): Promise<ServerMessage> {
+export async function answerState(client: DecideClient, state: StateMessage): Promise<ServerMessage> {
   if (state.status !== GAME_STATUS.playing) {
     return {
       type: MESSAGE_TYPE.finished,
