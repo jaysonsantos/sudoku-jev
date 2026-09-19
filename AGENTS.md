@@ -8,7 +8,7 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 |---|---|
 | `shared/src/` | Sudoku rules, generator, solver, protocol types. Used by both trees. |
 | `backend/src/` | Node HTTP and websocket server. Asks Jev for one move per state. |
-| `frontend/src/` | React single page app. Makes the puzzle, keeps the solution, applies moves. |
+| `frontend/src/` | React single page app. Makes the puzzle, keeps the solution, applies moves. The loop runs only after the Solve click. |
 | `test/` | `node --test` suites for `shared/` and `backend/`. |
 | `scripts/` | `lint.sh`, `test.sh`, `all.sh`, `release.sh`. CI runs the same scripts. |
 | `frontend/dist/` | Vite build output. The backend serves it. Not committed. |

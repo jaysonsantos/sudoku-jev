@@ -1,6 +1,6 @@
 # sudoku-jev
 
-A sudoku game that an AI decision model plays. The browser makes a random puzzle and opens a websocket. The backend sends the board and every legal placement to the TypeSafe Jev model through OpenRouter. Jev picks one placement. The browser applies it, reports the new board, and the loop runs until the puzzle is solved or the model makes three mistakes.
+A sudoku game that an AI decision model plays. The browser makes a random puzzle and opens a websocket. A click on **Solve** starts the loop. The backend sends the board and every legal placement to the TypeSafe Jev model through OpenRouter. Jev picks one placement. The browser applies it, reports the new board, and the loop runs until the puzzle is solved or the model makes three mistakes.
 
 Jev is a decision model, not a text model. It rates a list of options and returns one choice with probabilities. It does not compute, so the code does the sudoku rules and gives Jev only legal moves. Each option carries the digits that fit in its cell. Jev decides between them.
 
@@ -46,10 +46,10 @@ Every setting is a long flag, an environment variable, and a default. A flag win
 ## How the loop works
 
 1. The browser generates a puzzle with one solution and keeps the solution.
-2. After every change it sends `{ type: "state", board, rejected, mistakes, status }` on `/ws`.
+2. **Solve** starts the loop. After every change the browser sends `{ type: "state", board, rejected, mistakes, status }` on `/ws`.
 3. The backend computes the legal placements, drops the rejected ones, and asks Jev one `choice` question per batch of 255 options. Option ids look like `row_3_col_7_value_5`.
 4. The backend answers `{ type: "decision", move, probability, confidence, ... }`.
-5. The browser checks the move against the solution. A right value fills the cell. A wrong value counts as a mistake and joins `rejected`. Three mistakes lose the game.
+5. The browser checks the move against the solution. A right value fills the cell. A wrong value counts as a mistake and joins `rejected`. Three mistakes lose the game. **Pause** stops the loop, **New game** makes a new puzzle.
 
 ## Develop
 

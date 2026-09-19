@@ -21,6 +21,7 @@ export function App() {
   const [game, setGame] = useState<Game>(() => newGame());
   const [lines, setLines] = useState<LogLine[]>([]);
   const [waiting, setWaiting] = useState(false);
+  const [solving, setSolving] = useState(false);
   const nextLineId = useRef(0);
   const gameRef = useRef(game);
   gameRef.current = game;
@@ -71,9 +72,9 @@ export function App() {
 
   const socket = useJevSocket(onMessage);
 
-  // Report the state after every change while the game runs and the socket is open.
+  // Report the state after every change while Jev solves, the game runs, and the socket is open.
   useEffect(() => {
-    if (game.status !== GAME_STATUS.playing || socket.status !== SOCKET_STATUS.open || waiting) {
+    if (!solving || game.status !== GAME_STATUS.playing || socket.status !== SOCKET_STATUS.open || waiting) {
       return;
     }
     const timer = setTimeout(() => {
@@ -82,14 +83,34 @@ export function App() {
       }
     }, STEP_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [game, socket, waiting]);
+  }, [game, socket, waiting, solving]);
+
+  // Stop when the game ends, so a new game waits for the next click.
+  useEffect(() => {
+    if (game.status !== GAME_STATUS.playing) {
+      setSolving(false);
+    }
+  }, [game.status]);
 
   const restart = (): void => {
     setGame(newGame());
     setLines([]);
     setWaiting(false);
+    setSolving(false);
     log("info", "new game");
   };
+
+  const toggleSolve = (): void => {
+    if (solving) {
+      setSolving(false);
+      log("info", "paused");
+      return;
+    }
+    setSolving(true);
+    log("info", "Jev solves");
+  };
+
+  const canSolve = game.status === GAME_STATUS.playing && socket.status === SOCKET_STATUS.open;
 
   return (
     <main>
@@ -101,6 +122,9 @@ export function App() {
           <span>
             mistakes: {game.mistakes}/{MAX_MISTAKES}
           </span>
+          <button type="button" onClick={toggleSolve} disabled={!canSolve}>
+            {solving ? "Pause" : "Solve"}
+          </button>
           <button type="button" onClick={restart}>
             New game
           </button>
