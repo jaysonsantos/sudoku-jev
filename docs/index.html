@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How sudoku-jev plays with Jev</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23fbf7ef'/%3E%3Cpath d='M12 12h40v40H12z M25 12v40 M39 12v40 M12 25h40 M12 39h40' fill='none' stroke='%23333' stroke-width='3'/%3E%3Crect x='27' y='27' width='10' height='10' fill='%232a7fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --bg: #fbf7ef;
+    --surface: #ffffff;
+    --surface-2: #f3ede0;
+    --border: #e2d9c6;
+    --grid: #4a463d;
+    --text: #23211c;
+    --text-dim: #6f6858;
+    --given: #23211c;
+    --filled: #2a7fff;
+    --filled-dim: rgba(42, 127, 255, 0.10);
+    --jev: #c2410c;
+    --jev-dim: rgba(194, 65, 12, 0.10);
+    --ok: #2f7a4a;
+    --ok-dim: rgba(47, 122, 74, 0.12);
+    --bad: #b42323;
+    --bad-dim: rgba(180, 35, 35, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1915;
+      --surface: #23201b;
+      --surface-2: #2b2721;
+      --border: #3b352c;
+      --grid: #cfc6b3;
+      --text: #efe8d9;
+      --text-dim: #a89e89;
+      --given: #efe8d9;
+      --filled: #6aa6ff;
+      --filled-dim: rgba(106, 166, 255, 0.14);
+      --jev: #f0895a;
+      --jev-dim: rgba(240, 137, 90, 0.14);
+      --ok: #6fc48c;
+      --ok-dim: rgba(111, 196, 140, 0.14);
+      --bad: #f07272;
+      --bad-dim: rgba(240, 114, 114, 0.14);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 17px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; line-height: 1.15; }
+  h2 { font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 0.5rem; text-wrap: balance; }
+  h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.35rem; }
+  .lede { color: var(--text-dim); font-size: 1.05rem; max-width: 65ch; margin: 0.75rem 0 2.5rem; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--jev); font-weight: 600; display: block; margin-bottom: 0.4rem;
+  }
+  section { margin-bottom: 3rem; }
+  p.note { color: var(--text-dim); max-width: 65ch; margin-bottom: 1rem; }
+  code, .mono { font-family: var(--font-mono); font-size: 0.82rem; }
+  p code, li code, td code { background: var(--surface-2); padding: 0.05em 0.35em; border-radius: 3px; }
+  pre {
+    font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.9rem 1rem; overflow-x: auto; min-width: 0;
+  }
+  pre .k { color: var(--text-dim); }
+  pre .s { color: var(--filled); }
+  pre .n { color: var(--jev); }
+  pre .hl { background: var(--jev-dim); display: inline-block; width: 100%; }
+
+  /* board */
+  .board { border-collapse: collapse; border: 2px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .board td {
+    width: 2rem; height: 2rem; text-align: center; font-size: 0.95rem;
+    border: 1px solid var(--border);
+  }
+  .board td:nth-child(3n) { border-right: 2px solid var(--grid); }
+  .board tr:nth-child(3n) td { border-bottom: 2px solid var(--grid); }
+  .board td.g { font-weight: 600; color: var(--given); }
+  .board td.e { color: var(--text-dim); opacity: 0.55; }
+  .board td.pick { background: var(--jev-dim); color: var(--jev); font-weight: 700; outline: 2px solid var(--jev); outline-offset: -2px; }
+
+  /* layouts */
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; align-items: start; }
+  .two > * { min-width: 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.1rem; min-width: 0;
+  }
+  .card p { color: var(--text-dim); font-size: 0.92rem; }
+  .card.jev { border-top: 3px solid var(--jev); }
+  .card.ok { border-top: 3px solid var(--ok); }
+  .card.bad { border-top: 3px solid var(--bad); }
+  .card.blue { border-top: 3px solid var(--filled); }
+
+  /* option chips */
+  .options { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 0.6rem; }
+  .opt {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.75rem;
+    font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.55; min-width: 0; overflow-wrap: anywhere;
+  }
+  .opt .id { font-weight: 600; color: var(--text); display: block; margin-bottom: 0.2rem; }
+  .opt .k { color: var(--text-dim); }
+  .opt.pick { border-color: var(--jev); background: var(--jev-dim); }
+  .opt.more { display: flex; align-items: center; justify-content: center; color: var(--text-dim); border-style: dashed; }
+
+  /* bars */
+  .bars { display: grid; gap: 0.45rem; font-family: var(--font-mono); font-size: 0.78rem; }
+  .bar { display: grid; grid-template-columns: minmax(150px, 190px) 1fr 3.2rem; gap: 0.6rem; align-items: center; }
+  .bar .lbl { overflow-wrap: anywhere; }
+  .bar .track { height: 0.85rem; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--text-dim); border-radius: 3px; }
+  .bar.pick .fill { background: var(--jev); }
+  .bar.pick .lbl { color: var(--jev); font-weight: 600; }
+  .bar .val { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* facts table */
+  table.facts { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  table.facts th, table.facts td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 0.92rem; }
+  table.facts th { font-weight: 600; width: 32%; color: var(--text-dim); font-size: 0.82rem; }
+  table.facts tr:last-child td, table.facts tr:last-child th { border-bottom: none; }
+  .table-wrap { overflow-x: auto; }
+
+  /* flow steps */
+  .steps { counter-reset: s; display: grid; gap: 0.6rem; }
+  .step { display: grid; grid-template-columns: 2rem 1fr; gap: 0.75rem; align-items: baseline; }
+  .step::before {
+    counter-increment: s; content: counter(s, decimal-leading-zero);
+    font-family: var(--font-mono); font-size: 0.75rem; color: var(--jev); font-weight: 600;
+  }
+  .step b { font-weight: 600; }
+
+  /* mermaid shell */
+  .diagram-shell { position: relative; }
+  .diagram-shell__hint { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.4rem; opacity: 0.8; }
+  .mermaid-wrap {
+    position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; overflow: hidden; min-height: 360px; cursor: grab;
+  }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+  .zoom-controls {
+    position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 10;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px;
+  }
+  .zoom-controls button {
+    width: 28px; height: 28px; border: none; background: transparent; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 14px; cursor: pointer; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .zoom-controls button:hover { background: var(--surface-2); color: var(--text); }
+  .zoom-controls button:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--jev); outline-offset: 2px; }
+  .zoom-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); padding: 0 6px; white-space: nowrap; align-self: center; }
+  .mermaid-viewport { position: relative; overflow: hidden; width: 100%; height: 100%; min-height: 320px; }
+  .mermaid-canvas { position: absolute; top: 0; left: 0; }
+  .mermaid .nodeLabel, .mermaid .messageText, .mermaid .actor, .mermaid text { font-family: var(--font-body) !important; }
+  .mermaid .messageText { font-size: 14px !important; }
+  figure { margin: 0; }
+  figcaption { font-size: 0.88rem; color: var(--text-dim); margin-top: 0.6rem; max-width: 70ch; }
+  @media (max-width: 720px) { body { padding: 1.25rem 0.9rem 3rem; } h1 { font-size: 1.7rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <span class="eyebrow">sudoku-jev · how the loop works</span>
+  <h1>Jev never solves the sudoku. It picks one legal placement from a list, over and over.</h1>
+  <p class="lede">Jev is a decision model. It takes a <em>state</em> and a set of <em>questions</em> with fixed options, and returns one option per question with a probability for every option. The app turns each turn of the game into exactly that shape: the board is the state, every legal placement is an option, and the browser judges the answer.</p>
+</header>
+
+<section>
+  <span class="eyebrow">01 · the loop</span>
+  <h2>One round trip per placed digit</h2>
+  <figure>
+    <div class="diagram-shell" role="img" aria-label="Sequence diagram: the browser sends the board state over a websocket, the backend computes legal moves and asks Jev on OpenRouter one choice question per batch of 255 options, Jev answers with probabilities, the backend returns the best move, the browser checks it against the hidden solution and sends the new state.">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom. Drag to pan when zoomed. Double-click to fit.</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+sequenceDiagram
+  autonumber
+  participant B as Browser (React)
+  participant S as Backend (Node)
+  participant J as Jev via OpenRouter
+  Note over B: New game: generate puzzle,<br/>keep solution in memory
+  B->>B: click Solve
+  loop until won or 3 mistakes
+    B->>S: ws state {board, rejected, mistakes}
+    S->>S: legalMoves(board) minus rejected
+    S->>S: chunk into ≤255 options per question
+    S->>J: POST /api/alpha/decisions<br/>{state, questions}
+    J-->>S: {answers: {choice, probabilities, confidence}}
+    S->>S: pick max probability across batches
+    S-->>B: ws decision {move, probability, confidence}
+    alt move matches solution
+      B->>B: fill cell (blue)
+    else move is wrong
+      B->>B: mistakes+1, add to rejected (red)
+    end
+  end
+      </script>
+    </div>
+    <figcaption>Every digit costs one websocket round trip and one Jev request. The backend has no memory between rounds; the browser carries the whole state.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <span class="eyebrow">02 · what Jev sees</span>
+  <h2>The state: the board as nine text rows</h2>
+  <p class="note">The <code>state</code> field is structured JSON. The board is nine strings with a dot for an empty cell. The goal sentence is the only rule text. No solution, no hint about the right move.</p>
+  <div class="two">
+    <div>
+      <table class="board" aria-label="Puzzle sent as state, 45 empty cells">
+        <tbody>
+        <tr><td class="e">·</td><td class="e">·</td><td class="e">·</td><td class="g">6</td><td class="e">·</td><td class="pick">5</td><td class="e">·</td><td class="e">·</td><td class="e">·</td></tr>
+        <tr><td class="e">·</td><td class="g">1</td><td class="e">·</td><td class="e">·</td><td class="e">·</td><td class="g">7</td><td class="e">·</td><td class="g">6</td><td class="g">2</td></tr>
+        <tr><td class="e">·</td><td class="e">·</td><td class="e">·</td><td class="g">8</td><td class="g">2</td><td class="g">1</td><td class="e">·</td><td class="e">·</td><td class="g">9</td></tr>
+        <tr><td class="e">·</td><td class="e">·</td><td class="g">8</td><td class="g">9</td><td class="g">7</td><td class="e">·</td><td class="g">4</td><td class="e">·</td><td class="e">·</td></tr>
+        <tr><td class="g">4</td><td class="e">·</td><td class="e">·</td><td class="g">2</td><td class="g">1</td><td class="e">·</td><td class="e">·</td><td class="e">·</td><td class="e">·</td></tr>
+        <tr><td class="g">1</td><td class="e">·</td><td class="g">6</td><td class="e">·</td><td class="g">3</td><td class="g">4</td><td class="e">·</td><td class="g">2</td><td class="e">·</td></tr>
+        <tr><td class="e">·</td><td class="g">2</td><td class="e">·</td><td class="e">·</td><td class="g">6</td><td class="g">3</td><td class="e">·</td><td class="g">1</td><td class="g">7</td></tr>
+        <tr><td class="g">3</td><td class="g">4</td><td class="e">·</td><td class="g">1</td><td class="e">·</td><td class="g">9</td><td class="e">·</td><td class="e">·</td><td class="g">6</td></tr>
+        <tr><td class="e">·</td><td class="g">8</td><td class="g">1</td><td class="g">7</td><td class="e">·</td><td class="e">·</td><td class="g">3</td><td class="e">·</td><td class="g">4</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:0.6rem;font-size:0.85rem">Real puzzle from a captured request. The orange cell is the move Jev chose in the answer below.</p>
+    </div>
+<pre><span class="k">// request body, state part (captured)</span>
+{
+  <span class="s">"model"</span>: <span class="s">"typesafe/jev-1.13"</span>,
+  <span class="s">"state"</span>: {
+    <span class="s">"game"</span>: <span class="s">"sudoku"</span>,
+    <span class="s">"goal"</span>: <span class="s">"Fill every empty cell (.) so that each row,
+             each column, and each 3x3 box holds the
+             digits 1 to 9 once."</span>,
+    <span class="s">"rows"</span>: [
+      <span class="s">". . . 6 . . . . ."</span>,
+      <span class="s">". 1 . . . 7 . 6 2"</span>,
+      <span class="s">". . . 8 2 1 . . 9"</span>,
+      <span class="s">". . 8 9 7 . 4 . ."</span>,
+      <span class="s">"4 . . 2 1 . . . ."</span>,
+      <span class="s">"1 . 6 . 3 4 . 2 ."</span>,
+      <span class="s">". 2 . . 6 3 . 1 7"</span>,
+      <span class="s">"3 4 . 1 . 9 . . 6"</span>,
+      <span class="s">". 8 1 7 . . 3 . 4"</span>
+    ],
+    <span class="s">"empty_cells"</span>: <span class="n">45</span>
+  },
+  <span class="s">"questions"</span>: { <span class="k">... see below ...</span> }
+}</pre>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">03 · the choices</span>
+  <h2>The question: every legal placement is one option</h2>
+  <p class="note">The backend computes the candidates. Only placements that break no row, column, or box rule become options, minus the ones the browser already rejected. This puzzle had <strong>135</strong> legal placements, so one question. An option id reads like a sentence, and its description is a small object: the position, the digit, and every digit that still fits in that cell.</p>
+<pre><span class="s">"questions"</span>: {
+  <span class="s">"move_batch_1"</span>: {
+    <span class="s">"type"</span>: <span class="s">"choice"</span>,
+    <span class="s">"instructions"</span>: <span class="s">"Which placement is certainly correct for this sudoku?
+                     Prefer a cell whose cell_candidates has one value.
+                     Otherwise pick the placement that the row, column,
+                     and box rules force."</span>,
+    <span class="s">"criteria"</span>: { <span class="k">// 135 entries, one per legal placement</span>
+      <span class="s">"row_1_col_1_value_2"</span>: { <span class="s">"row"</span>: <span class="n">1</span>, <span class="s">"column"</span>: <span class="n">1</span>, <span class="s">"value"</span>: <span class="n">2</span>, <span class="s">"cell_candidates"</span>: [<span class="n">2</span>,<span class="n">5</span>,<span class="n">7</span>,<span class="n">8</span>,<span class="n">9</span>] },
+      <span class="s">"row_1_col_1_value_5"</span>: { <span class="s">"row"</span>: <span class="n">1</span>, <span class="s">"column"</span>: <span class="n">1</span>, <span class="s">"value"</span>: <span class="n">5</span>, <span class="s">"cell_candidates"</span>: [<span class="n">2</span>,<span class="n">5</span>,<span class="n">7</span>,<span class="n">8</span>,<span class="n">9</span>] },
+      <span class="k">...</span>
+<span class="hl">      <span class="s">"row_1_col_6_value_5"</span>: { <span class="s">"row"</span>: <span class="n">1</span>, <span class="s">"column"</span>: <span class="n">6</span>, <span class="s">"value"</span>: <span class="n">5</span>, <span class="s">"cell_candidates"</span>: [<span class="n">5</span>] },</span>
+      <span class="k">...</span>
+    }
+  }
+}</pre>
+  <h3 style="margin-top:1.25rem">Same options as cards</h3>
+  <div class="options" aria-label="Sample of the 135 options">
+    <div class="opt"><span class="id">row_1_col_1_value_2</span><span class="k">row</span> 1 · <span class="k">column</span> 1 · <span class="k">value</span> 2<br><span class="k">cell_candidates</span> [2,5,7,8,9]</div>
+    <div class="opt"><span class="id">row_1_col_1_value_5</span><span class="k">row</span> 1 · <span class="k">column</span> 1 · <span class="k">value</span> 5<br><span class="k">cell_candidates</span> [2,5,7,8,9]</div>
+    <div class="opt"><span class="id">row_1_col_1_value_7</span><span class="k">row</span> 1 · <span class="k">column</span> 1 · <span class="k">value</span> 7<br><span class="k">cell_candidates</span> [2,5,7,8,9]</div>
+    <div class="opt pick"><span class="id">row_1_col_6_value_5</span><span class="k">row</span> 1 · <span class="k">column</span> 6 · <span class="k">value</span> 5<br><span class="k">cell_candidates</span> [5]</div>
+    <div class="opt"><span class="id">row_9_col_5_value_5</span><span class="k">row</span> 9 · <span class="k">column</span> 5 · <span class="k">value</span> 5<br><span class="k">cell_candidates</span> [2,5]</div>
+    <div class="opt more">+ 130 more</div>
+  </div>
+  <div class="cards" style="margin-top:1.25rem">
+    <div class="card jev">
+      <h3>Why 255 matters</h3>
+      <p>Jev accepts at most 255 options per choice question. An empty board has 729 placements. The backend slices the list into <code>move_batch_1</code>, <code>move_batch_2</code>, ... and sends all batches in one request. Jev answers them in parallel.</p>
+    </div>
+    <div class="card jev">
+      <h3>Why <code>cell_candidates</code></h3>
+      <p>Jev does not count or calculate. The code computes which digits fit in each cell and puts the list in every option. A single-digit list is the visible signal that the instructions ask it to prefer.</p>
+    </div>
+    <div class="card jev">
+      <h3>Why an id like a sentence</h3>
+      <p><code>row_1_col_6_value_5</code> is the option key Jev returns. The backend parses it back into <code>{row: 0, col: 5, value: 5}</code> with a regex. No free text ever comes back.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">04 · what Jev answers</span>
+  <h2>A probability for every option, one choice per question</h2>
+  <div class="two">
+    <div>
+      <div class="bars" aria-label="Top probabilities from the captured answer">
+        <div class="bar pick"><span class="lbl">row_1_col_6_value_5</span><div class="track"><div class="fill" style="width:51%"></div></div><span class="val">0.51</span></div>
+        <div class="bar"><span class="lbl">row_9_col_5_value_5</span><div class="track"><div class="fill" style="width:19%"></div></div><span class="val">0.19</span></div>
+        <div class="bar"><span class="lbl">row_6_col_4_value_5</span><div class="track"><div class="fill" style="width:16%"></div></div><span class="val">0.16</span></div>
+        <div class="bar"><span class="lbl">row_4_col_6_value_5</span><div class="track"><div class="fill" style="width:2%"></div></div><span class="val">0.02</span></div>
+        <div class="bar"><span class="lbl">row_9_col_1_value_6</span><div class="track"><div class="fill" style="width:1%"></div></div><span class="val">0.01</span></div>
+        <div class="bar"><span class="lbl">row_9_col_6_value_2</span><div class="track"><div class="fill" style="width:1%"></div></div><span class="val">0.01</span></div>
+        <div class="bar"><span class="lbl" style="color:var(--text-dim)">129 others</span><div class="track"><div class="fill" style="width:10%;opacity:0.4"></div></div><span class="val">≈0.10</span></div>
+      </div>
+      <p class="note" style="margin-top:0.8rem;font-size:0.88rem">Jev put half its mass on the one cell with a single candidate. The next three are the same digit 5 in other cells, so it also reads the row and column pattern, not just the list length.</p>
+    </div>
+<pre><span class="k">// response body (captured, trimmed)</span>
+{
+  <span class="s">"model"</span>: <span class="s">"typesafe/jev-1.13-20260917"</span>,
+  <span class="s">"answers"</span>: {
+    <span class="s">"move_batch_1"</span>: {
+      <span class="s">"type"</span>: <span class="s">"choice"</span>,
+<span class="hl">      <span class="s">"choice"</span>: <span class="s">"row_1_col_6_value_5"</span>,</span>
+      <span class="s">"confidence"</span>: <span class="n">0.5</span>,
+      <span class="s">"probabilities"</span>: {
+        <span class="s">"row_1_col_6_value_5"</span>: <span class="n">0.51</span>,
+        <span class="s">"row_9_col_5_value_5"</span>: <span class="n">0.19</span>,
+        <span class="s">"row_6_col_4_value_5"</span>: <span class="n">0.16</span>,
+        <span class="k">... 132 more ...</span>
+      }
+    }
+  },
+  <span class="s">"usage"</span>: { <span class="s">"input_tokens"</span>: <span class="n">7251</span>, <span class="s">"output_tokens"</span>: <span class="n">2053</span>,
+             <span class="s">"cost"</span>: <span class="n">0.000304</span> }
+}
+
+<span class="k">// backend → browser</span>
+{ <span class="s">"type"</span>: <span class="s">"decision"</span>, <span class="s">"move"</span>: { <span class="s">"row"</span>: <span class="n">0</span>, <span class="s">"col"</span>: <span class="n">5</span>, <span class="s">"value"</span>: <span class="n">5</span> },
+  <span class="s">"probability"</span>: <span class="n">0.51</span>, <span class="s">"confidence"</span>: <span class="n">0.5</span>,
+  <span class="s">"options_considered"</span>: <span class="n">135</span>, <span class="s">"questions_asked"</span>: <span class="n">1</span>, <span class="s">"latency_ms"</span>: <span class="n">~350</span> }</pre>
+  </div>
+  <p class="note" style="margin-top:1rem">With several batches, each question names its own winner. The backend ignores the <code>choice</code> fields and takes the single highest probability across all batches, then reports the confidence of the batch it came from.</p>
+</section>
+
+<section>
+  <span class="eyebrow">05 · who judges</span>
+  <h2>The browser owns the solution. Jev is never told if it was right.</h2>
+  <div class="cards">
+    <div class="card blue">
+      <h3>Correct value</h3>
+      <p>The move matches the hidden solution. The cell fills in blue and the next state goes out after a short delay so the board stays readable.</p>
+    </div>
+    <div class="card bad">
+      <h3>Wrong value</h3>
+      <p>Cell stays empty, shown red with a strike. The move joins <code>rejected</code>, so the backend never offers it again. Mistakes count goes up.</p>
+    </div>
+    <div class="card ok">
+      <h3>Won</h3>
+      <p>No empty cell left. Status becomes <code>won</code>, the loop stops, and the Solve button disables until New game.</p>
+    </div>
+    <div class="card bad">
+      <h3>Lost</h3>
+      <p>Three mistakes. Status becomes <code>lost</code>. The server also declares a loss when no legal move remains after the rejections.</p>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">Feedback reaches Jev only indirectly: a wrong option disappears from the next list, and a right one shows up as a filled digit in the next state rows.</p>
+</section>
+
+<section>
+  <span class="eyebrow">06 · numbers from this capture</span>
+  <h2>What one move costs</h2>
+  <div class="table-wrap">
+  <table class="facts">
+    <tbody>
+      <tr><th>Endpoint</th><td><code>POST https://openrouter.ai/api/alpha/decisions</code>. The chat completions endpoint rejects the model with a 400.</td></tr>
+      <tr><th>Model id</th><td><code>typesafe/jev-1.13</code>, served as <code>jev-1.13-20260917</code></td></tr>
+      <tr><th>Options in this request</th><td>135 legal placements, 1 question (limit 255 per question)</td></tr>
+      <tr><th>Tokens</th><td>7,251 input, 2,053 output. Output tokens are free on this model.</td></tr>
+      <tr><th>Cost per move</th><td>$0.0003. A 45-cell puzzle solved without mistakes costs about $0.014.</td></tr>
+      <tr><th>Latency</th><td>300 to 700 ms per decision, measured in the backend around the fetch call</td></tr>
+      <tr><th>Where the logic lives</th><td><code>backend/src/jev.ts</code> builds the request and picks the best option. <code>shared/src/sudoku.ts</code> computes legal moves. <code>frontend/src/game.ts</code> judges the move.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const config = { fitPadding: 24, minHeight: 360, maxHeightPx: 900, maxHeightVh: 0.84, maxInitialZoom: 1.4, minZoom: 0.08, maxZoom: 6, zoomStep: 0.14, readabilityFloor: 0.58 };
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  let activeDrag = null;
+  addEventListener('mousemove', (e) => activeDrag?.onMove(e));
+  addEventListener('mouseup', () => { activeDrag?.onEnd(); activeDrag = null; });
+
+  mermaid.initialize({
+    startOnLoad: false, theme: 'base', look: 'classic',
+    sequence: { mirrorActors: false, messageFontSize: 14, noteFontSize: 13, actorFontSize: 15, wrap: true, width: 190 },
+    themeVariables: {
+      fontFamily: "'IBM Plex Sans', system-ui, sans-serif", fontSize: '14px',
+      primaryColor: isDark ? '#2b2721' : '#f3ede0',
+      primaryBorderColor: isDark ? '#f0895a' : '#c2410c',
+      primaryTextColor: isDark ? '#efe8d9' : '#23211c',
+      actorBkg: isDark ? '#2b2721' : '#f3ede0',
+      actorBorder: isDark ? '#f0895a' : '#c2410c',
+      actorTextColor: isDark ? '#efe8d9' : '#23211c',
+      actorLineColor: isDark ? '#6b6252' : '#b9ae97',
+      signalColor: isDark ? '#cfc6b3' : '#4a463d',
+      signalTextColor: isDark ? '#efe8d9' : '#23211c',
+      labelBoxBkgColor: isDark ? '#2b2721' : '#f3ede0',
+      labelBoxBorderColor: isDark ? '#6b6252' : '#b9ae97',
+      labelTextColor: isDark ? '#efe8d9' : '#23211c',
+      loopTextColor: isDark ? '#f0895a' : '#c2410c',
+      noteBkgColor: isDark ? '#1f3350' : '#e6f0ff',
+      noteBorderColor: isDark ? '#6aa6ff' : '#2a7fff',
+      noteTextColor: isDark ? '#efe8d9' : '#23211c',
+      activationBkgColor: isDark ? '#3b352c' : '#e2d9c6',
+      sequenceNumberColor: isDark ? '#1b1915' : '#ffffff',
+      lineColor: isDark ? '#cfc6b3' : '#4a463d',
+    }
+  });
+
+  function initDiagram(shell) {
+    const wrap = shell.querySelector('.mermaid-wrap');
+    const viewport = shell.querySelector('.mermaid-viewport');
+    const canvas = shell.querySelector('.mermaid-canvas');
+    const source = shell.querySelector('.diagram-source');
+    const label = shell.querySelector('.zoom-label');
+    let zoom = 1, fitMode = 'contain', panX = 0, panY = 0, svgW = 0, svgH = 0, sx = 0, sy = 0, spx = 0, spy = 0;
+
+    function constrainPan() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight, rW = svgW * zoom, rH = svgH * zoom, pad = config.fitPadding;
+      panX = (rW + pad * 2 <= vpW) ? (vpW - rW) / 2 : clamp(panX, vpW - rW - pad, pad);
+      panY = (rH + pad * 2 <= vpH) ? (vpH - rH) / 2 : clamp(panY, vpH - rH - pad, pad);
+    }
+    function applyTransform() {
+      const svg = canvas.querySelector('svg'); if (!svg || !svgW) return;
+      constrainPan();
+      svg.style.width = (svgW * zoom) + 'px'; svg.style.height = (svgH * zoom) + 'px';
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+      label.textContent = Math.round(zoom * 100) + '% — ' + fitMode;
+    }
+    function canPan() { return svgW * zoom + config.fitPadding * 2 > viewport.clientWidth || svgH * zoom + config.fitPadding * 2 > viewport.clientHeight; }
+    function computeSmartFit() {
+      const aW = Math.max(80, viewport.clientWidth - config.fitPadding * 2), aH = Math.max(80, viewport.clientHeight - config.fitPadding * 2);
+      const contain = Math.min(aW / svgW, aH / svgH);
+      let z = contain, mode = 'contain';
+      if (contain < config.readabilityFloor) {
+        if (svgH / svgW >= viewport.clientHeight / Math.max(viewport.clientWidth, 1)) { z = aW / svgW; mode = 'width-priority'; } else { z = aH / svgH; mode = 'height-priority'; }
+      }
+      return { zoom: clamp(z, config.minZoom, config.maxInitialZoom), mode };
+    }
+    function fitDiagram() {
+      if (!svgW) return;
+      const fit = computeSmartFit(); zoom = fit.zoom; fitMode = fit.mode;
+      panX = (viewport.clientWidth - svgW * zoom) / 2; panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function setOneToOne() { zoom = 1; fitMode = '1:1'; panX = (viewport.clientWidth - svgW) / 2; panY = (viewport.clientHeight - svgH) / 2; applyTransform(); }
+    function zoomAround(factor, cx, cy) {
+      const next = clamp(zoom * factor, config.minZoom, config.maxZoom), ratio = next / zoom;
+      panX = cx - ratio * (cx - panX); panY = cy - ratio * (cy - panY); zoom = next; fitMode = 'custom'; applyTransform();
+    }
+    function readSvgNaturalSize(svg) {
+      let w = 0, h = 0;
+      if (svg.viewBox?.baseVal?.width > 0) { w = svg.viewBox.baseVal.width; h = svg.viewBox.baseVal.height; }
+      if (!w) { w = parseFloat(svg.getAttribute('width')) || 0; h = parseFloat(svg.getAttribute('height')) || 0; }
+      if (!w) { const b = svg.getBBox(); w = b.width; h = b.height; }
+      if (!w) { const r = svg.getBoundingClientRect(); w = r.width || 1000; h = r.height || 700; }
+      if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      return { w, h };
+    }
+    function setAdaptiveHeight() {
+      if (!svgW) return;
+      const usableW = Math.max(280, wrap.getBoundingClientRect().width - 2);
+      const idealH = (svgH / svgW) * usableW + config.fitPadding * 2;
+      const hardMax = Math.min(config.maxHeightPx, Math.max(config.minHeight + 40, Math.floor(innerHeight * config.maxHeightVh)));
+      wrap.style.height = Math.round(clamp(idealH, config.minHeight, hardMax)) + 'px';
+    }
+    function openInNewTab() {
+      const svg = canvas.querySelector('svg'); if (!svg) return;
+      const clone = svg.cloneNode(true); clone.style.width = ''; clone.style.height = '';
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Diagram</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90vh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
+      open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
+    }
+    async function render() {
+      try {
+        const id = 'diagram-' + Math.random().toString(36).slice(2, 8);
+        const { svg } = await mermaid.render(id, source.textContent.trim());
+        const parsedSvg = new DOMParser().parseFromString(svg, 'text/html').body.querySelector('svg');
+        canvas.replaceChildren(document.adoptNode(parsedSvg));
+        const svgNode = canvas.querySelector('svg');
+        const size = readSvgNaturalSize(svgNode); svgW = size.w; svgH = size.h;
+        svgNode.removeAttribute('width'); svgNode.removeAttribute('height');
+        svgNode.style.maxWidth = 'none'; svgNode.style.display = 'block';
+        setAdaptiveHeight(); fitDiagram();
+      } catch (err) { console.error('Mermaid render failed:', err); label.textContent = 'Error: ' + (err.message || 'Render failed'); }
+    }
+    const actions = {
+      'zoom-in': () => zoomAround(1 + config.zoomStep, viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-out': () => zoomAround(1 / (1 + config.zoomStep), viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-fit': fitDiagram, 'zoom-one': setOneToOne, 'zoom-expand': openInNewTab,
+    };
+    Object.entries(actions).forEach(([a, h]) => wrap.querySelector(`[data-action="${a}"]`)?.addEventListener('click', h));
+    viewport.addEventListener('dblclick', fitDiagram);
+    viewport.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault(); const r = viewport.getBoundingClientRect();
+        zoomAround(e.deltaY < 0 ? 1 + config.zoomStep : 1 / (1 + config.zoomStep), e.clientX - r.left, e.clientY - r.top); return;
+      }
+      if (canPan()) { e.preventDefault(); panX -= e.deltaX; panY -= e.deltaY; applyTransform(); }
+    }, { passive: false });
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-controls') || !canPan()) return;
+      wrap.classList.add('is-panning'); sx = e.clientX; sy = e.clientY; spx = panX; spy = panY; e.preventDefault();
+      activeDrag = { onMove: (ev) => { panX = spx + (ev.clientX - sx); panY = spy + (ev.clientY - sy); applyTransform(); }, onEnd: () => wrap.classList.remove('is-panning') };
+    });
+    new ResizeObserver(() => { if (svgW) { setAdaptiveHeight(); fitDiagram(); } }).observe(wrap);
+    render();
+  }
+  document.querySelectorAll('.diagram-shell').forEach(initDiagram);
+</script>
+</body>
+</html>

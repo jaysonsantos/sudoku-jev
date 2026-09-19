@@ -4,6 +4,8 @@ A sudoku game that an AI decision model plays. The browser makes a random puzzle
 
 Jev is a decision model, not a text model. It rates a list of options and returns one choice with probabilities. It does not compute, so the code does the sudoku rules and gives Jev only legal moves. Each option carries the digits that fit in its cell. Jev decides between them.
 
+A visual explanation of the loop, with a captured request and response, is on [GitHub Pages](https://jaysonsantos.github.io/sudoku-jev/).
+
 ## Run
 
 ```sh

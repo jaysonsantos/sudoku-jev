@@ -1,7 +1,16 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
   "files": {
-    "includes": ["**", "!**/.direnv", "!**/node_modules", "!**/frontend/dist", "!**/pnpm-lock.yaml", "!**/CHANGELOG.md"]
+    "includes": [
+      "**",
+      "!**/.direnv",
+      "!**/node_modules",
+      "!**/frontend/dist",
+      "!**/pnpm-lock.yaml",
+      "!**/CHANGELOG.md",
+      // docs/ holds a standalone HTML explainer served by GitHub Pages, not application code.
+      "!**/docs"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

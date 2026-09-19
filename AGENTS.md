@@ -12,6 +12,7 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 | `test/` | `node --test` suites for `shared/` and `backend/`. |
 | `scripts/` | `lint.sh`, `test.sh`, `all.sh`, `release.sh`. CI runs the same scripts. |
 | `frontend/dist/` | Vite build output. The backend serves it. Not committed. |
+| `docs/` | Standalone HTML explainer of the Jev loop, served by GitHub Pages from `main`. |
 
 ## Commands
 
