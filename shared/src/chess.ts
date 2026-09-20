@@ -1,13 +1,19 @@
 import { Chess, validateFen } from "chess.js";
 import {
+  CHESS_CLOCK_MS,
   CHESS_FINISH_REASON,
   CHESS_OPTION_ID_PREFIX,
   CHESS_PATH,
   CHESS_TURN,
   CHESS_WINS_LABEL,
+  CLOCK_PAD_CHAR,
+  CLOCK_PAD_LENGTH,
+  CLOCK_SEPARATOR,
   MAX_CHESS_OPTIONS,
+  MS_PER_SECOND,
   SAN_CHECK_MARK,
   SAN_MATE_MARK,
+  SECONDS_PER_MINUTE,
   UCI_PATTERN,
 } from "./constants.ts";
 import type { ChessColor, ChessMove, GameStatus } from "./types.ts";
@@ -144,4 +150,41 @@ export function chessOutcome(fen: string): ChessOutcome | null {
     return { status: GAME_STATUS.draw, reason: CHESS_FINISH_REASON.draw };
   }
   return null;
+}
+
+export interface ChessClocks {
+  white: number;
+  black: number;
+}
+
+export function startingClocks(): ChessClocks {
+  return { white: CHESS_CLOCK_MS, black: CHESS_CLOCK_MS };
+}
+
+export function otherChessColor(color: ChessColor): ChessColor {
+  return color === CHESS_COLOR.white ? CHESS_COLOR.black : CHESS_COLOR.white;
+}
+
+export function formatChessClock(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / MS_PER_SECOND));
+  const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE);
+  const seconds = totalSeconds % SECONDS_PER_MINUTE;
+  return `${String(minutes).padStart(CLOCK_PAD_LENGTH, CLOCK_PAD_CHAR)}${CLOCK_SEPARATOR}${String(seconds).padStart(CLOCK_PAD_LENGTH, CLOCK_PAD_CHAR)}`;
+}
+
+export function tickSideClock(
+  clocks: ChessClocks,
+  color: ChessColor,
+  elapsedMs: number,
+): { clocks: ChessClocks; flagged: boolean } {
+  const remaining = Math.max(0, clocks[color] - elapsedMs);
+  return {
+    clocks: { ...clocks, [color]: remaining },
+    flagged: remaining === 0,
+  };
+}
+
+export function timeoutOutcome(flagged: ChessColor): ChessOutcome {
+  const winner = otherChessColor(flagged);
+  return { status: GAME_STATUS.won, reason: `${CHESS_FINISH_REASON.timeout}: ${winner} ${CHESS_WINS_LABEL}` };
 }

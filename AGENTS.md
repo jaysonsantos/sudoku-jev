@@ -9,7 +9,7 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 | `shared/src/` | Sudoku and chess rules, generator, solver, protocol types. Used by both trees. |
 | `backend/src/` | Node HTTP and websocket server. Asks Jev for one move per state (sudoku or chess). |
 | `cloudflare/src/` | Worker plus Durable Object. Terminates `/ws` on Cloudflare. Reuses `backend/` Jev code. |
-| `frontend/src/` | React SPA. `/` is sudoku; `/chess` is two-player Jev chess with chessboard.js. |
+| `frontend/src/` | React SPA. `/` is sudoku; `/chess` is two-player Jev chess on one shared chessboard.js board. |
 | `test/` | `node --test` suites for `shared/`, `backend/`, and `cloudflare/`. |
 | `scripts/` | `lint.sh`, `test.sh`, `all.sh`, `release.sh`. CI runs the same scripts. |
 | `frontend/dist/` | Vite build output. The Node server and the Worker assets serve it. Not committed. |

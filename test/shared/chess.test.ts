@@ -2,19 +2,27 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyUci,
+  CHESS_CLOCK_MS,
   CHESS_COLOR,
+  CHESS_FINISH_REASON,
   CHESS_PATH,
   chessOutcome,
+  formatChessClock,
   GAME_STATUS,
   isChessPath,
   isLegalUci,
   isValidFen,
   legalChessMoves,
   MAX_CHESS_OPTIONS,
+  MS_PER_SECOND,
   offeredChessMoves,
   parseUci,
+  SECONDS_PER_MINUTE,
   STARTING_FEN,
   sideToMove,
+  startingClocks,
+  tickSideClock,
+  timeoutOutcome,
 } from "../../shared/src/index.ts";
 
 const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
@@ -72,4 +80,23 @@ test("isChessPath matches /chess and a trailing slash", () => {
   assert.equal(isChessPath(CHESS_PATH), true);
   assert.equal(isChessPath(`${CHESS_PATH}/`), true);
   assert.equal(isChessPath("/"), false);
+});
+
+test("formatChessClock and tickSideClock count down one side", () => {
+  const clocks = startingClocks();
+  assert.equal(clocks.white, CHESS_CLOCK_MS);
+  assert.equal(formatChessClock(0), "00:00");
+  assert.equal(formatChessClock(MS_PER_SECOND), "00:01");
+  assert.equal(formatChessClock(MS_PER_SECOND * SECONDS_PER_MINUTE + MS_PER_SECOND), "01:01");
+  const ticked = tickSideClock(clocks, CHESS_COLOR.white, MS_PER_SECOND);
+  assert.equal(ticked.clocks.white, CHESS_CLOCK_MS - MS_PER_SECOND);
+  assert.equal(ticked.clocks.black, CHESS_CLOCK_MS);
+  assert.equal(ticked.flagged, false);
+  const flagged = tickSideClock(clocks, CHESS_COLOR.white, CHESS_CLOCK_MS);
+  assert.equal(flagged.flagged, true);
+  assert.equal(flagged.clocks.white, 0);
+  const outcome = timeoutOutcome(CHESS_COLOR.white);
+  assert.equal(outcome.status, GAME_STATUS.won);
+  assert.match(outcome.reason, new RegExp(CHESS_FINISH_REASON.timeout));
+  assert.match(outcome.reason, /black/);
 });

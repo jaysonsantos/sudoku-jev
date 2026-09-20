@@ -66,12 +66,12 @@ Layout: `shared/` holds the sudoku and chess rules and message types, `backend/`
 
 ## Chess
 
-`/chess` is the same SPA and the same `/ws` session. Two panels show White and Black, each with its own chessboard.js board (that player's orientation), a color label, and the FEN/state Jev sees for that side.
+`/chess` is the same SPA and the same `/ws` session. One shared chessboard.js board shows the same position to both sides. White and Black each have a color label and a countdown clock on that board. The side to move asks Jev for its play.
 
 1. **Play** starts the loop. The browser sends `{ type: "state", game: "chess", fen, rejected, status }`.
 2. The backend lists legal UCIs with chess.js, sorts them, and keeps at most 150. Option ids look like `uci_e2e4`.
 3. Jev returns the most probable play. The backend checks the pick is legal. An illegal or unknown pick is dropped and the same position is asked once more. A second failure is an error.
-4. The browser applies a legal move on both boards and the other color becomes the side to move.
+4. The browser applies a legal move on the shared board and the other color becomes the side to move.
 
 ## Cloudflare
 

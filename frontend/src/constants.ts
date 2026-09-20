@@ -18,3 +18,7 @@ export const TURN_YOURS = "your turn";
 export const TURN_WAITING = "waiting";
 export const EMPTY_STATE_VALUE = "—";
 export const PLAY_BOTH_LABEL = "Jev plays both colors";
+export const ASKS_JEV_SUFFIX = " asks Jev";
+export const SHARED_BOARD_LABEL = "shared board";
+export const SHARED_FEN_LABEL = "fen";
+export const SIDE_TO_MOVE_LABEL = "side_to_move";

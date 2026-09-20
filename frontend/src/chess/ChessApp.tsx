@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChessColor, ServerMessage } from "../../../shared/src/index.ts";
 import {
+  CHESS_CLOCK_TICK_MS,
   CHESS_COLOR,
-  GAME_KIND,
+  formatChessClock,
   GAME_STATUS,
   isChessDecisionMessage,
   MESSAGE_TYPE,
@@ -12,12 +13,15 @@ import type { LogLine } from "../components/LogView.tsx";
 import { LogView } from "../components/LogView.tsx";
 import { NAV_PAGE, Nav } from "../components/Nav.tsx";
 import {
+  ASKS_JEV_SUFFIX,
   CHESS_TITLE,
-  EMPTY_STATE_VALUE,
   MAX_LOG_LINES,
   PERCENT,
   PLAY_BOTH_LABEL,
   PLAYER_TITLE,
+  SHARED_BOARD_LABEL,
+  SHARED_FEN_LABEL,
+  SIDE_TO_MOVE_LABEL,
   STEP_DELAY_MS,
   TURN_WAITING,
   TURN_YOURS,
@@ -26,45 +30,23 @@ import {
 import { SOCKET_STATUS, useJevSocket } from "../useJevSocket.ts";
 import { ChessBoard } from "./ChessBoard.tsx";
 import type { ChessGame } from "./chessGame.ts";
-import { applyChessDecision, newChessGame, playerTurn, toChessStateMessage } from "./chessGame.ts";
+import { applyChessDecision, newChessGame, playerTurn, tickChessGame, toChessStateMessage } from "./chessGame.ts";
 
 function formatPercent(value: number): string {
   return `${Math.round(value * PERCENT)}%`;
 }
 
-function playerState(game: ChessGame, color: ChessColor): Record<string, string | null> {
-  const last = game.lastColor === color ? game.lastMove : null;
-  return {
-    game: GAME_KIND.chess,
-    player_color: color,
-    fen: game.fen,
-    side_to_move: sideToMove(game.fen),
-    last_move: last?.san ?? null,
-  };
-}
-
-function PlayerPanel({ game, color }: { game: ChessGame; color: ChessColor }) {
+function PlayerClock({ game, color }: { game: ChessGame; color: ChessColor }) {
   const turn = playerTurn(game, color);
-  const state = playerState(game, color);
-  const title = PLAYER_TITLE[color];
   return (
-    <article className={turn ? "player-panel turn" : "player-panel"} aria-label={title}>
-      <h2>{title}</h2>
+    <section className={turn ? "player-clock active" : "player-clock"} aria-label={PLAYER_TITLE[color]}>
       <p className="player-color">
         {YOU_ARE_PREFIX}
         {color}
       </p>
       <p className={turn ? "turn-label active" : "turn-label"}>{turn ? TURN_YOURS : TURN_WAITING}</p>
-      <ChessBoard fen={game.fen} orientation={color} lastMove={game.lastMove} />
-      <dl className="player-state" aria-label={`${color} state`}>
-        {Object.entries(state).map(([key, value]) => (
-          <div key={key}>
-            <dt>{key}</dt>
-            <dd>{value ?? EMPTY_STATE_VALUE}</dd>
-          </div>
-        ))}
-      </dl>
-    </article>
+      <time className="clock">{formatChessClock(game.clocks[color])}</time>
+    </section>
   );
 }
 
@@ -135,13 +117,31 @@ export function ChessApp() {
     if (!playing || game.status !== GAME_STATUS.playing || socket.status !== SOCKET_STATUS.open || waiting) {
       return;
     }
+    const color = sideToMove(game.fen);
     const timer = setTimeout(() => {
       if (socket.send(toChessStateMessage(game))) {
         setWaiting(true);
+        log("info", `${color}${ASKS_JEV_SUFFIX}`);
       }
     }, STEP_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [game, socket, waiting, playing]);
+  }, [game, socket, waiting, playing, log]);
+
+  useEffect(() => {
+    if (!playing || game.status !== GAME_STATUS.playing) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setGame((current) => {
+        const next = tickChessGame(current, CHESS_CLOCK_TICK_MS);
+        if (next.status !== current.status && next.reason !== null) {
+          log("info", next.reason);
+        }
+        return next;
+      });
+    }, CHESS_CLOCK_TICK_MS);
+    return () => clearInterval(timer);
+  }, [playing, game.status, log]);
 
   useEffect(() => {
     if (game.status !== GAME_STATUS.playing) {
@@ -168,6 +168,7 @@ export function ChessApp() {
   };
 
   const canPlay = game.status === GAME_STATUS.playing && socket.status === SOCKET_STATUS.open;
+  const turn = sideToMove(game.fen);
 
   return (
     <main>
@@ -177,7 +178,9 @@ export function ChessApp() {
         <p className="meta">
           <span className={`status socket-${socket.status}`}>socket: {socket.status}</span>
           <span className={`status game-${game.status}`}>game: {game.status}</span>
-          <span>side: {sideToMove(game.fen)}</span>
+          <span>
+            {SIDE_TO_MOVE_LABEL}: {turn}
+          </span>
           <button type="button" onClick={togglePlay} disabled={!canPlay}>
             {playing ? "Pause" : "Play"}
           </button>
@@ -187,9 +190,20 @@ export function ChessApp() {
         </p>
       </header>
       <section className="layout chess-layout">
-        <section className="players" aria-label="two players">
-          <PlayerPanel game={game} color={CHESS_COLOR.white} />
-          <PlayerPanel game={game} color={CHESS_COLOR.black} />
+        <section className="shared-board" aria-label={SHARED_BOARD_LABEL}>
+          <PlayerClock game={game} color={CHESS_COLOR.black} />
+          <ChessBoard fen={game.fen} orientation={CHESS_COLOR.white} lastMove={game.lastMove} />
+          <PlayerClock game={game} color={CHESS_COLOR.white} />
+          <dl className="player-state" aria-label={SHARED_BOARD_LABEL}>
+            <div>
+              <dt>{SHARED_FEN_LABEL}</dt>
+              <dd>{game.fen}</dd>
+            </div>
+            <div>
+              <dt>{SIDE_TO_MOVE_LABEL}</dt>
+              <dd>{turn}</dd>
+            </div>
+          </dl>
         </section>
         <LogView lines={lines} />
       </section>

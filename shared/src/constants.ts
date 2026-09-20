@@ -41,7 +41,16 @@ export const CHESS_FINISH_REASON = {
   stalemate: "stalemate",
   draw: "draw",
   noLegalMove: "no legal move is left",
+  timeout: "time",
 } as const;
+/** Each side starts with this many milliseconds. Only the side to move counts down. */
+export const CHESS_CLOCK_MS = 300_000;
+export const CHESS_CLOCK_TICK_MS = 250;
+export const MS_PER_SECOND = 1000;
+export const SECONDS_PER_MINUTE = 60;
+export const CLOCK_PAD_LENGTH = 2;
+export const CLOCK_PAD_CHAR = "0";
+export const CLOCK_SEPARATOR = ":";
 export const CHESS_WINS_LABEL = "wins";
 export const CHESS_ERROR = {
   invalidFen: "fen is invalid",

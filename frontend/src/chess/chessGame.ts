@@ -1,4 +1,4 @@
-import type { ChessColor, ChessMove, ChessStateMessage, GameStatus } from "../../../shared/src/index.ts";
+import type { ChessClocks, ChessColor, ChessMove, ChessStateMessage, GameStatus } from "../../../shared/src/index.ts";
 import {
   applyUci,
   chessOutcome,
@@ -7,6 +7,9 @@ import {
   MESSAGE_TYPE,
   STARTING_FEN,
   sideToMove,
+  startingClocks,
+  tickSideClock,
+  timeoutOutcome,
 } from "../../../shared/src/index.ts";
 
 export interface ChessGame {
@@ -17,6 +20,7 @@ export interface ChessGame {
   reason: string | null;
   lastMove: ChessMove | null;
   lastColor: ChessColor | null;
+  clocks: ChessClocks;
 }
 
 export function newChessGame(): ChessGame {
@@ -28,7 +32,21 @@ export function newChessGame(): ChessGame {
     reason: null,
     lastMove: null,
     lastColor: null,
+    clocks: startingClocks(),
   };
+}
+
+export function tickChessGame(game: ChessGame, elapsedMs: number): ChessGame {
+  if (game.status !== GAME_STATUS.playing) {
+    return game;
+  }
+  const color = sideToMove(game.fen);
+  const ticked = tickSideClock(game.clocks, color, elapsedMs);
+  if (!ticked.flagged) {
+    return { ...game, clocks: ticked.clocks };
+  }
+  const outcome = timeoutOutcome(color);
+  return { ...game, clocks: ticked.clocks, status: outcome.status, reason: outcome.reason };
 }
 
 export function applyChessDecision(game: ChessGame, move: ChessMove): ChessGame {
