@@ -12,6 +12,8 @@ import {
   timeoutOutcome,
 } from "../../../shared/src/index.ts";
 
+const ASK_KEY_SEPARATOR = "\0";
+
 export interface ChessGame {
   id: string;
   fen: string;
@@ -81,4 +83,9 @@ export function toChessStateMessage(game: ChessGame): ChessStateMessage {
 
 export function playerTurn(game: ChessGame, color: ChessColor): boolean {
   return game.status === GAME_STATUS.playing && sideToMove(game.fen) === color;
+}
+
+/** Position Jev is asked about. Clock fields are omitted so ticks do not reset the ask timer. */
+export function chessAskKey(game: ChessGame): string {
+  return [game.id, game.fen, game.status, ...game.rejected].join(ASK_KEY_SEPARATOR);
 }

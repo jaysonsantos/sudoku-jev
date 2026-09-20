@@ -30,7 +30,14 @@ import {
 import { SOCKET_STATUS, useJevSocket } from "../useJevSocket.ts";
 import { ChessBoard } from "./ChessBoard.tsx";
 import type { ChessGame } from "./chessGame.ts";
-import { applyChessDecision, newChessGame, playerTurn, tickChessGame, toChessStateMessage } from "./chessGame.ts";
+import {
+  applyChessDecision,
+  chessAskKey,
+  newChessGame,
+  playerTurn,
+  tickChessGame,
+  toChessStateMessage,
+} from "./chessGame.ts";
 
 function formatPercent(value: number): string {
   return `${Math.round(value * PERCENT)}%`;
@@ -111,21 +118,29 @@ export function ChessApp() {
     [log],
   );
 
-  const socket = useJevSocket(onMessage);
+  const { status: socketStatus, send } = useJevSocket(onMessage);
+  const askKey = chessAskKey(game);
 
+  // Schedule from the position, not the clock. Ticks rewrite `game` every
+  // CHESS_CLOCK_TICK_MS, which is shorter than STEP_DELAY_MS.
   useEffect(() => {
-    if (!playing || game.status !== GAME_STATUS.playing || socket.status !== SOCKET_STATUS.open || waiting) {
+    const current = gameRef.current;
+    if (!playing || current.status !== GAME_STATUS.playing || socketStatus !== SOCKET_STATUS.open || waiting) {
       return;
     }
-    const color = sideToMove(game.fen);
+    const color = sideToMove(current.fen);
     const timer = setTimeout(() => {
-      if (socket.send(toChessStateMessage(game))) {
+      const latest = gameRef.current;
+      if (chessAskKey(latest) !== askKey) {
+        return;
+      }
+      if (send(toChessStateMessage(latest))) {
         setWaiting(true);
         log("info", `${color}${ASKS_JEV_SUFFIX}`);
       }
     }, STEP_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [game, socket, waiting, playing, log]);
+  }, [askKey, send, socketStatus, waiting, playing, log]);
 
   useEffect(() => {
     if (!playing || game.status !== GAME_STATUS.playing) {
@@ -167,7 +182,7 @@ export function ChessApp() {
     log("info", PLAY_BOTH_LABEL);
   };
 
-  const canPlay = game.status === GAME_STATUS.playing && socket.status === SOCKET_STATUS.open;
+  const canPlay = game.status === GAME_STATUS.playing && socketStatus === SOCKET_STATUS.open;
   const turn = sideToMove(game.fen);
 
   return (
@@ -176,7 +191,7 @@ export function ChessApp() {
         <Nav current={NAV_PAGE.chess} />
         <h1>{CHESS_TITLE}</h1>
         <p className="meta">
-          <span className={`status socket-${socket.status}`}>socket: {socket.status}</span>
+          <span className={`status socket-${socketStatus}`}>socket: {socketStatus}</span>
           <span className={`status game-${game.status}`}>game: {game.status}</span>
           <span>
             {SIDE_TO_MOVE_LABEL}: {turn}
