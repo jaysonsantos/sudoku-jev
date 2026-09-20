@@ -130,7 +130,11 @@ export function ChessApp() {
     }
     const color = sideToMove(current.fen);
     const timer = setTimeout(() => {
-      if (send(toChessStateMessage(gameRef.current))) {
+      const latest = gameRef.current;
+      if (chessAskKey(latest) !== askKey) {
+        return;
+      }
+      if (send(toChessStateMessage(latest))) {
         setWaiting(true);
         log("info", `${color}${ASKS_JEV_SUFFIX}`);
       }
