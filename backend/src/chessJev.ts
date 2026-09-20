@@ -1,8 +1,9 @@
 import type { ChessMove, ChessMoveOption } from "../../shared/src/index.ts";
-import { chessOptionId, GAME_KIND, parseChessOptionId, sideToMove } from "../../shared/src/index.ts";
-import type { ChoiceQuestion, DecisionRequest, DecisionResponse } from "./jev.ts";
+import { chessOptionId, GAME_KIND, parseChessOptionId, parseUci, sideToMove } from "../../shared/src/index.ts";
+import type { ChoiceAnswer, ChoiceQuestion, DecisionRequest, DecisionResponse } from "./jev.ts";
 
 // region: request
+const MISSING_PROBABILITY = 0;
 export const CHESS_QUESTION_ID = "move_batch_1";
 export const CHESS_GOAL = "Play the strongest legal chess move for the side to move. Only use a listed option.";
 export const CHESS_INSTRUCTIONS =
@@ -68,7 +69,27 @@ export function buildChessRequest(model: string, fen: string, moves: ChessMoveOp
   return { model, state: chessToState(fen, moves.length), questions };
 }
 
-/** Picks the offered option with the highest probability. Unknown ids are ignored. */
+function decisionFrom(
+  move: ChessMove,
+  probability: number,
+  confidence: number,
+  optionsConsidered: number,
+  questionsAsked: number,
+): ChessJevDecision {
+  return {
+    move,
+    probability,
+    confidence,
+    options_considered: optionsConsidered,
+    questions_asked: questionsAsked,
+  };
+}
+
+function moveFromOffered(move: ChessMoveOption): ChessMove {
+  return { uci: move.uci, san: move.san, from: move.from, to: move.to };
+}
+
+/** Jev's `choice` is the pick. An unoffered UCI is returned so the caller can drop it and re-ask. */
 export function pickBestChess(response: DecisionResponse, offered: ChessMoveOption[]): ChessJevDecision | null {
   const byId = new Map(offered.map((move) => [chessOptionId(move.uci), move]));
   let best: ChessJevDecision | null = null;
@@ -77,6 +98,10 @@ export function pickBestChess(response: DecisionResponse, offered: ChessMoveOpti
     if (answer.type !== "choice") {
       continue;
     }
+    const chosen = pickChoice(answer, byId, offered.length, questions.length);
+    if (chosen !== null) {
+      return chosen;
+    }
     for (const [id, probability] of Object.entries(answer.probabilities)) {
       const uci = parseChessOptionId(id);
       const move = uci === null ? undefined : byId.get(id);
@@ -84,16 +109,40 @@ export function pickBestChess(response: DecisionResponse, offered: ChessMoveOpti
         continue;
       }
       if (best === null || probability > best.probability) {
-        best = {
-          move: { uci: move.uci, san: move.san, from: move.from, to: move.to },
-          probability,
-          confidence: answer.confidence,
-          options_considered: offered.length,
-          questions_asked: questions.length,
-        };
+        best = decisionFrom(moveFromOffered(move), probability, answer.confidence, offered.length, questions.length);
       }
     }
   }
   return best;
+}
+
+function pickChoice(
+  answer: ChoiceAnswer,
+  byId: Map<string, ChessMoveOption>,
+  optionsConsidered: number,
+  questionsAsked: number,
+): ChessJevDecision | null {
+  const offered = byId.get(answer.choice);
+  if (offered !== undefined) {
+    return decisionFrom(
+      moveFromOffered(offered),
+      answer.probabilities[answer.choice] ?? MISSING_PROBABILITY,
+      answer.confidence,
+      optionsConsidered,
+      questionsAsked,
+    );
+  }
+  const uci = parseChessOptionId(answer.choice);
+  const parsed = uci === null ? null : parseUci(uci);
+  if (uci === null || parsed === null) {
+    return null;
+  }
+  return decisionFrom(
+    { uci, san: uci, from: parsed.from, to: parsed.to },
+    answer.probabilities[answer.choice] ?? MISSING_PROBABILITY,
+    answer.confidence,
+    optionsConsidered,
+    questionsAsked,
+  );
 }
 // endregion: request

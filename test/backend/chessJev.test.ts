@@ -17,15 +17,52 @@ test("buildChessRequest sends one question of legal UCIs and the player color", 
   assert.ok(Object.keys(question.criteria).every((id) => id.startsWith("uci_")));
 });
 
-test("pickBestChess takes the highest probability among offered ids", () => {
+test("pickBestChess uses Jev's choice when that id was offered", () => {
   const offered = legalChessMoves(STARTING_FEN).filter((move) => move.uci === "e2e4" || move.uci === "d2d4");
   const response: DecisionResponse = {
     model: "m",
     answers: {
       move_batch_1: {
         type: "choice",
-        choice: "uci_a1a1",
-        probabilities: { uci_a1a1: 0.9, uci_e2e4: 0.4, uci_d2d4: 0.7 },
+        choice: "uci_e2e4",
+        probabilities: { uci_e2e4: 0.4, uci_d2d4: 0.7 },
+        confidence: 0.5,
+      },
+    },
+  };
+  const best = pickBestChess(response, offered);
+  assert.equal(best?.move.uci, "e2e4");
+  assert.equal(best?.probability, 0.4);
+  assert.equal(best?.options_considered, offered.length);
+});
+
+test("pickBestChess returns an unoffered choice so the re-roll can exclude it", () => {
+  const offered = legalChessMoves(STARTING_FEN).filter((move) => move.uci === "e2e4" || move.uci === "d2d4");
+  const response: DecisionResponse = {
+    model: "m",
+    answers: {
+      move_batch_1: {
+        type: "choice",
+        choice: "uci_d8e7",
+        probabilities: { uci_d8e7: 0.29, uci_e2e4: 0.1, uci_d2d4: 0.2 },
+        confidence: 0.25,
+      },
+    },
+  };
+  const best = pickBestChess(response, offered);
+  assert.equal(best?.move.uci, "d8e7");
+  assert.equal(best?.probability, 0.29);
+});
+
+test("pickBestChess falls back to the highest offered probability when choice is not a UCI", () => {
+  const offered = legalChessMoves(STARTING_FEN).filter((move) => move.uci === "e2e4" || move.uci === "d2d4");
+  const response: DecisionResponse = {
+    model: "m",
+    answers: {
+      move_batch_1: {
+        type: "choice",
+        choice: "not-a-move",
+        probabilities: { uci_e2e4: 0.4, uci_d2d4: 0.7 },
         confidence: 0.5,
       },
     },
@@ -33,7 +70,6 @@ test("pickBestChess takes the highest probability among offered ids", () => {
   const best = pickBestChess(response, offered);
   assert.equal(best?.move.uci, "d2d4");
   assert.equal(best?.probability, 0.7);
-  assert.equal(best?.options_considered, offered.length);
 });
 
 test("JevClient.decideChess posts a chess request and maps the answer", async () => {

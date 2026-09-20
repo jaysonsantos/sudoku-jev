@@ -31,7 +31,7 @@ import { SOCKET_STATUS, useJevSocket } from "../useJevSocket.ts";
 import { ChessBoard } from "./ChessBoard.tsx";
 import type { ChessGame } from "./chessGame.ts";
 import {
-  applyChessDecision,
+  applyOrRejectChessDecision,
   chessAskKey,
   newChessGame,
   playerTurn,
@@ -89,10 +89,10 @@ export function ChessApp() {
             log("error", "server sent a sudoku decision on /chess");
             return;
           }
-          const next = applyChessDecision(current, message.move);
+          const next = applyOrRejectChessDecision(current, message.move);
           if (next.fen === current.fen) {
             log("error", `rejected illegal move ${message.move.uci}`);
-            setPlaying(false);
+            setGame(next);
             return;
           }
           const stats = `p=${formatPercent(message.probability)} conf=${formatPercent(message.confidence)} options=${message.options_considered} rerolls=${message.rerolls} in ${message.latency_ms}ms`;
