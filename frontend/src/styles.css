@@ -101,3 +101,85 @@ header h1 {
   color: #c02020;
   font-weight: 700;
 }
+
+.status.game-draw {
+  color: #b8860b;
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.nav a[aria-current="page"] {
+  font-weight: 700;
+}
+
+.chess-layout {
+  align-items: flex-start;
+}
+
+.players {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.player-panel {
+  width: 22rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+}
+
+.player-panel.turn {
+  outline: 2px solid var(--filled);
+}
+
+.player-panel h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.player-color {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.turn-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.turn-label.active {
+  color: var(--filled);
+  font-weight: 700;
+}
+
+.chessboard-host {
+  width: 20rem;
+}
+
+.player-state {
+  margin: 0.75rem 0 0;
+}
+
+.player-state div {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.25rem 0.75rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+.player-state dt {
+  margin: 0;
+  color: var(--line);
+}
+
+.player-state dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

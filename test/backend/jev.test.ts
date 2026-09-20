@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { DecisionResponse } from "../../backend/src/jev.ts";
+import type { BoardState, DecisionResponse } from "../../backend/src/jev.ts";
 import {
   buildRequest,
   chunk,
@@ -29,8 +29,9 @@ test("buildRequest splits options into batches of at most 255", () => {
   for (const question of questions) {
     assert.ok(Object.keys(question.criteria).length <= MAX_OPTIONS_PER_QUESTION);
   }
-  assert.equal(request.state.rows.length, 9);
-  assert.equal(request.state.rows[0], ". . . . . . . . .");
+  const state = request.state as BoardState;
+  assert.equal(state.rows.length, 9);
+  assert.equal(state.rows[0], ". . . . . . . . .");
 });
 
 test("chunk keeps every element once", () => {

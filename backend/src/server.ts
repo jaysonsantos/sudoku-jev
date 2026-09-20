@@ -7,7 +7,7 @@ import { WebSocketServer } from "ws";
 import type { ServerMessage } from "../../shared/src/index.ts";
 import { HEALTH_BODY, HEALTH_PATH, MESSAGE_TYPE, WS_PATH } from "../../shared/src/index.ts";
 import type { Config } from "./config.ts";
-import { answerState, parseStateMessage } from "./game.ts";
+import { answerClientMessage, peekGameId } from "./dispatch.ts";
 import { JevClient } from "./jev.ts";
 
 // region: static files
@@ -51,17 +51,16 @@ function attachWebSocket(server: Server, client: JevClient): WebSocketServer {
   const wss = new WebSocketServer({ server, path: WS_PATH });
   wss.on("connection", (socket) => {
     socket.on("message", async (raw) => {
-      let gameId: string | null = null;
+      const text = raw.toString();
+      const gameId = peekGameId(text);
       try {
-        const state = parseStateMessage(raw.toString());
-        gameId = state.game_id;
-        const answer = await answerState(client, state);
+        const answer = await answerClientMessage(client, text);
         send(socket, answer);
         if (answer.type === MESSAGE_TYPE.decision) {
           console.info(
             JSON.stringify({
               event: "decision",
-              game_id: gameId,
+              game_id: answer.game_id,
               move: answer.move,
               probability: answer.probability,
               confidence: answer.confidence,

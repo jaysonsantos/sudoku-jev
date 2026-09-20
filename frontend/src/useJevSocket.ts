@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ServerMessage, StateMessage } from "../../shared/src/index.ts";
+import type { ClientMessage, ServerMessage } from "../../shared/src/index.ts";
 import { MESSAGE_TYPE, WS_PATH } from "../../shared/src/index.ts";
 import { RECONNECT_DELAY_MS } from "./constants.ts";
 
@@ -17,7 +17,7 @@ function socketUrl(): string {
 
 export interface JevSocket {
   status: SocketStatus;
-  send: (message: StateMessage) => boolean;
+  send: (message: ClientMessage) => boolean;
 }
 
 /** Keeps one websocket open to the backend and hands every parsed server message to `onMessage`. */
@@ -74,7 +74,7 @@ export function useJevSocket(onMessage: (message: ServerMessage) => void): JevSo
     };
   }, []);
 
-  const send = useCallback((message: StateMessage): boolean => {
+  const send = useCallback((message: ClientMessage): boolean => {
     const socket = socketRef.current;
     if (socket === null || socket.readyState !== WebSocket.OPEN) {
       return false;

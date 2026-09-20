@@ -11,7 +11,7 @@ import {
 } from "../../cloudflare/src/constants.ts";
 import type { WorkerEnv } from "../../cloudflare/src/env.ts";
 import { handleRequest, healthResponse, isWebSocketUpgrade } from "../../cloudflare/src/route.ts";
-import { HEALTH_BODY, HEALTH_PATH, WS_PATH } from "../../shared/src/index.ts";
+import { CHESS_PATH, HEALTH_BODY, HEALTH_PATH, SUDOKU_PATH, WS_PATH } from "../../shared/src/index.ts";
 
 const ORIGIN = "https://sudoku-jev.example";
 const POST_METHOD = "POST";
@@ -91,12 +91,19 @@ test("handleRequest forwards a websocket upgrade to a new Durable Object", async
   assert.ok(seen[0] !== undefined && seen[0].length > 0);
 });
 
-test("wrangler.jsonc binds GameSession on /ws", () => {
+test("wrangler.jsonc binds GameSession on /ws and documents SPA /chess", () => {
   const text = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
   assert.ok(text.includes(`"main": "${WORKER_ENTRY}"`));
   assert.ok(text.includes(`"${WS_PATH}"`));
   assert.ok(text.includes(`"${HEALTH_PATH}"`));
+  assert.ok(text.includes(`"${CHESS_PATH}"`));
+  assert.ok(text.includes(`"${SUDOKU_PATH}"`) || text.includes("`/`"));
+  assert.ok(text.includes("single-page-application"));
   assert.ok(text.includes(`"name": "${DO_BINDING_NAME}"`));
   assert.ok(text.includes(`"class_name": "${DO_CLASS_NAME}"`));
   assert.ok(text.includes(`"${DO_CLASS_NAME}":`));
+  const workerFirst = text.slice(text.indexOf("run_worker_first"));
+  assert.ok(workerFirst.includes(`"${WS_PATH}"`));
+  assert.ok(workerFirst.includes(`"${HEALTH_PATH}"`));
+  assert.ok(!workerFirst.includes(`"${CHESS_PATH}"`));
 });

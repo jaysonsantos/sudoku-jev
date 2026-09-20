@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ServerMessage } from "../../shared/src/index.ts";
-import { GAME_STATUS, MAX_MISTAKES, MESSAGE_TYPE } from "../../shared/src/index.ts";
+import { GAME_STATUS, isChessDecisionMessage, MAX_MISTAKES, MESSAGE_TYPE } from "../../shared/src/index.ts";
 import { BoardView } from "./components/BoardView.tsx";
 import type { LogLine } from "./components/LogView.tsx";
 import { LogView } from "./components/LogView.tsx";
+import { NAV_PAGE, Nav } from "./components/Nav.tsx";
 import { MAX_LOG_LINES, PERCENT, STEP_DELAY_MS } from "./constants.ts";
 import type { Game } from "./game.ts";
 import { applyMove, newGame, toStateMessage } from "./game.ts";
@@ -41,6 +42,9 @@ export function App() {
       }
       switch (message.type) {
         case MESSAGE_TYPE.decision: {
+          if (isChessDecisionMessage(message)) {
+            return;
+          }
           const next = applyMove(current, message.move);
           const cell = formatCell(message.move.row, message.move.col);
           const stats = `p=${formatPercent(message.probability)} conf=${formatPercent(message.confidence)} options=${message.options_considered} in ${message.latency_ms}ms`;
@@ -115,6 +119,7 @@ export function App() {
   return (
     <main>
       <header>
+        <Nav current={NAV_PAGE.sudoku} />
         <h1>Sudoku played by Jev</h1>
         <p className="meta">
           <span className={`status socket-${socket.status}`}>socket: {socket.status}</span>

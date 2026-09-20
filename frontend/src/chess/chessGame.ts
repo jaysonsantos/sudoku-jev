@@ -1,0 +1,66 @@
+import type { ChessColor, ChessMove, ChessStateMessage, GameStatus } from "../../../shared/src/index.ts";
+import {
+  applyUci,
+  chessOutcome,
+  GAME_KIND,
+  GAME_STATUS,
+  MESSAGE_TYPE,
+  STARTING_FEN,
+  sideToMove,
+} from "../../../shared/src/index.ts";
+
+export interface ChessGame {
+  id: string;
+  fen: string;
+  rejected: string[];
+  status: GameStatus;
+  reason: string | null;
+  lastMove: ChessMove | null;
+  lastColor: ChessColor | null;
+}
+
+export function newChessGame(): ChessGame {
+  return {
+    id: crypto.randomUUID(),
+    fen: STARTING_FEN,
+    rejected: [],
+    status: GAME_STATUS.playing,
+    reason: null,
+    lastMove: null,
+    lastColor: null,
+  };
+}
+
+export function applyChessDecision(game: ChessGame, move: ChessMove): ChessGame {
+  if (game.status !== GAME_STATUS.playing) {
+    return game;
+  }
+  const applied = applyUci(game.fen, move.uci);
+  if (applied === null) {
+    return game;
+  }
+  const outcome = chessOutcome(applied.fen);
+  return {
+    ...game,
+    fen: applied.fen,
+    lastMove: { uci: applied.uci, san: applied.san, from: applied.from, to: applied.to },
+    lastColor: applied.color,
+    status: outcome?.status ?? GAME_STATUS.playing,
+    reason: outcome?.reason ?? null,
+  };
+}
+
+export function toChessStateMessage(game: ChessGame): ChessStateMessage {
+  return {
+    type: MESSAGE_TYPE.state,
+    game: GAME_KIND.chess,
+    game_id: game.id,
+    fen: game.fen,
+    rejected: game.rejected,
+    status: game.status,
+  };
+}
+
+export function playerTurn(game: ChessGame, color: ChessColor): boolean {
+  return game.status === GAME_STATUS.playing && sideToMove(game.fen) === color;
+}

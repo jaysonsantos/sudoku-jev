@@ -1,6 +1,6 @@
 # sudoku-jev
 
-A sudoku game that an AI decision model plays. The browser makes a random puzzle and opens a websocket. A click on **Solve** starts the loop. The backend sends the board and every legal placement to the TypeSafe Jev model through OpenRouter. Jev picks one placement. The browser applies it, reports the new board, and the loop runs until the puzzle is solved or the model makes three mistakes.
+A sudoku game (and a two-player chess game at `/chess`) that an AI decision model plays. The browser makes a random puzzle and opens a websocket. A click on **Solve** starts the loop. The backend sends the board and every legal placement to the TypeSafe Jev model through OpenRouter. Jev picks one placement. The browser applies it, reports the new board, and the loop runs until the puzzle is solved or the model makes three mistakes.
 
 Jev is a decision model, not a text model. It rates a list of options and returns one choice with probabilities. It does not compute, so the code does the sudoku rules and gives Jev only legal moves. Each option carries the digits that fit in its cell. Jev decides between them.
 
@@ -62,7 +62,16 @@ scripts/test.sh   # typecheck and node --test
 scripts/all.sh    # lint, test, build
 ```
 
-Layout: `shared/` holds the sudoku rules and message types, `backend/` the Node server, `cloudflare/` the Worker and Durable Object, `frontend/` the React app, `test/` the suites. See `AGENTS.md` for the rules of the repository.
+Layout: `shared/` holds the sudoku and chess rules and message types, `backend/` the Node server, `cloudflare/` the Worker and Durable Object, `frontend/` the React app, `test/` the suites. See `AGENTS.md` for the rules of the repository.
+
+## Chess
+
+`/chess` is the same SPA and the same `/ws` session. Two panels show White and Black, each with its own chessboard.js board (that player's orientation), a color label, and the FEN/state Jev sees for that side.
+
+1. **Play** starts the loop. The browser sends `{ type: "state", game: "chess", fen, rejected, status }`.
+2. The backend lists legal UCIs with chess.js, sorts them, and keeps at most 150. Option ids look like `uci_e2e4`.
+3. Jev returns the most probable play. The backend checks the pick is legal. An illegal or unknown pick is dropped and the same position is asked once more. A second failure is an error.
+4. The browser applies a legal move on both boards and the other color becomes the side to move.
 
 ## Cloudflare
 
@@ -70,7 +79,7 @@ The SPA needs a Worker to terminate `/ws`. Cloudflare Workflows cannot hold a We
 
 | Item | Value |
 |---|---|
-| Route | `/ws` (same path the browser already opens) |
+| Routes | `/` sudoku SPA, `/chess` chess SPA, `/ws` GameSession, `/healthz` |
 | Health | `/healthz` |
 | Binding | `GAME_SESSION` |
 | Class | `GameSession` |

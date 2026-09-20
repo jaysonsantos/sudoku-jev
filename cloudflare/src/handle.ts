@@ -1,8 +1,10 @@
-import { answerState, parseStateMessage } from "../../backend/src/game.ts";
-import type { DecideClient } from "../../backend/src/jev.ts";
-import type { DecisionMessage, ErrorMessage, ServerMessage } from "../../shared/src/index.ts";
+import { answerClientMessage, peekGameId } from "../../backend/src/dispatch.ts";
+import type { GameClient } from "../../backend/src/jev.ts";
+import type { ChessDecisionMessage, DecisionMessage, ErrorMessage, ServerMessage } from "../../shared/src/index.ts";
 import { MESSAGE_TYPE } from "../../shared/src/index.ts";
 import { LOG_EVENT } from "./constants.ts";
+
+export { answerClientMessage as answerRawState, peekGameId, peekGameKind } from "../../backend/src/dispatch.ts";
 
 export function textFromSocketMessage(message: string | ArrayBuffer): string {
   return typeof message === "string" ? message : new TextDecoder().decode(message);
@@ -13,12 +15,7 @@ export function errorFromUnknown(gameId: string | null, error: unknown): ErrorMe
   return { type: MESSAGE_TYPE.error, game_id: gameId, message };
 }
 
-export async function answerRawState(client: DecideClient, raw: string): Promise<ServerMessage> {
-  const state = parseStateMessage(raw);
-  return answerState(client, state);
-}
-
-export function decisionLog(gameId: string, answer: DecisionMessage): Record<string, unknown> {
+export function decisionLog(gameId: string, answer: DecisionMessage | ChessDecisionMessage): Record<string, unknown> {
   return {
     event: LOG_EVENT.decision,
     game_id: gameId,
@@ -35,14 +32,12 @@ export function errorLog(gameId: string | null, message: string): Record<string,
 }
 
 /** Parses a client payload and answers it. On failure returns an error message. */
-export async function respondToSocketText(client: DecideClient, raw: string): Promise<ServerMessage> {
-  let gameId: string | null = null;
+export async function respondToSocketText(client: GameClient, raw: string): Promise<ServerMessage> {
+  const gameId = peekGameId(raw);
   try {
-    const state = parseStateMessage(raw);
-    gameId = state.game_id;
-    const answer = await answerState(client, state);
+    const answer = await answerClientMessage(client, raw);
     if (answer.type === MESSAGE_TYPE.decision) {
-      console.info(JSON.stringify(decisionLog(gameId, answer)));
+      console.info(JSON.stringify(decisionLog(answer.game_id, answer)));
     }
     return answer;
   } catch (error) {

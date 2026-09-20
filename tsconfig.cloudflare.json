@@ -4,5 +4,13 @@
     "lib": ["ES2023"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["cloudflare/src/**/*.ts", "backend/src/game.ts", "backend/src/jev.ts", "shared/**/*.ts"]
+  "include": [
+    "cloudflare/src/**/*.ts",
+    "backend/src/chessGame.ts",
+    "backend/src/chessJev.ts",
+    "backend/src/dispatch.ts",
+    "backend/src/game.ts",
+    "backend/src/jev.ts",
+    "shared/**/*.ts"
+  ]
 }

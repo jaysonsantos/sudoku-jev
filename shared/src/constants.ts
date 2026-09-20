@@ -18,4 +18,33 @@ export const DEFAULT_EMPTY_CELLS = 45;
 export const WS_PATH = "/ws";
 export const HEALTH_PATH = "/healthz";
 export const HEALTH_BODY = "ok";
+export const SUDOKU_PATH = "/";
+export const CHESS_PATH = "/chess";
 // endregion: protocol
+
+// region: chess
+/** Jev choice questions for chess stay at or under this many options. */
+export const MAX_CHESS_OPTIONS = 150;
+/** Illegal or unusable Jev picks are dropped and the same position is asked this many extra times. */
+export const CHESS_ILLEGAL_REROLLS = 1;
+export const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+export const CHESS_TURN = {
+  white: "w",
+  black: "b",
+} as const;
+export const SAN_CHECK_MARK = "+";
+export const SAN_MATE_MARK = "#";
+export const UCI_PATTERN = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/;
+export const CHESS_OPTION_ID_PREFIX = "uci_";
+export const CHESS_FINISH_REASON = {
+  checkmate: "checkmate",
+  stalemate: "stalemate",
+  draw: "draw",
+  noLegalMove: "no legal move is left",
+} as const;
+export const CHESS_WINS_LABEL = "wins";
+export const CHESS_ERROR = {
+  invalidFen: "fen is invalid",
+  illegalAfterReroll: "Jev returned no legal move after one re-roll",
+} as const;
+// endregion: chess

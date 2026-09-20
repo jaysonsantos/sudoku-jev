@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { DecideClient, Decision } from "../../backend/src/jev.ts";
+import type { Decision, GameClient } from "../../backend/src/jev.ts";
 import { LOG_EVENT } from "../../cloudflare/src/constants.ts";
 import { answerRawState, respondToSocketText, textFromSocketMessage } from "../../cloudflare/src/handle.ts";
 import type { StateMessage } from "../../shared/src/index.ts";
-import { emptyBoard, GAME_STATUS, MESSAGE_TYPE } from "../../shared/src/index.ts";
+import {
+  emptyBoard,
+  GAME_KIND,
+  GAME_STATUS,
+  isChessDecisionMessage,
+  MESSAGE_TYPE,
+  STARTING_FEN,
+} from "../../shared/src/index.ts";
 
 function state(): StateMessage {
   return {
@@ -17,8 +24,13 @@ function state(): StateMessage {
   };
 }
 
-function clientWith(decision: Decision | null): DecideClient {
-  return { decide: async () => decision };
+function clientWith(decision: Decision | null): GameClient {
+  return {
+    decide: async () => decision,
+    decideChess: async () => {
+      throw new Error("sudoku test should not ask chess");
+    },
+  };
 }
 
 test("textFromSocketMessage decodes bytes and passes strings through", () => {
@@ -54,9 +66,12 @@ test("respondToSocketText turns a bad payload into an error message", async () =
 });
 
 test("respondToSocketText keeps game_id when the model fails after parse", async () => {
-  const client: DecideClient = {
+  const client: GameClient = {
     decide: async () => {
       throw new Error("openrouter down");
+    },
+    decideChess: async () => {
+      throw new Error("sudoku test should not ask chess");
     },
   };
   const answer = await respondToSocketText(client, JSON.stringify(state()));
@@ -64,6 +79,39 @@ test("respondToSocketText keeps game_id when the model fails after parse", async
   if (answer.type === MESSAGE_TYPE.error) {
     assert.equal(answer.game_id, "g");
     assert.equal(answer.message, "openrouter down");
+  }
+});
+
+test("respondToSocketText answers a chess state", async () => {
+  const client: GameClient = {
+    decide: async () => {
+      throw new Error("chess test should not ask sudoku");
+    },
+    decideChess: async () => ({
+      move: { uci: "e2e4", san: "e4", from: "e2", to: "e4" },
+      probability: 1,
+      confidence: 1,
+      options_considered: 20,
+      questions_asked: 1,
+    }),
+  };
+  const answer = await respondToSocketText(
+    client,
+    JSON.stringify({
+      type: MESSAGE_TYPE.state,
+      game: GAME_KIND.chess,
+      game_id: "c",
+      fen: STARTING_FEN,
+      rejected: [],
+      status: GAME_STATUS.playing,
+    }),
+  );
+  assert.equal(answer.type, MESSAGE_TYPE.decision);
+  if (isChessDecisionMessage(answer)) {
+    assert.equal(answer.game, GAME_KIND.chess);
+    assert.equal(answer.move.uci, "e2e4");
+  } else {
+    assert.fail("expected a chess decision");
   }
 });
 

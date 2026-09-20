@@ -1,5 +1,7 @@
-import type { Board, Move } from "../../shared/src/index.ts";
+import type { Board, ChessMoveOption, Move } from "../../shared/src/index.ts";
 import { candidatesFor, EMPTY } from "../../shared/src/index.ts";
+import type { ChessJevDecision } from "./chessJev.ts";
+import { buildChessRequest, pickBestChess } from "./chessJev.ts";
 
 // region: limits
 /** Jev accepts at most this many options in one choice question. */
@@ -16,7 +18,7 @@ const APP_TITLE = "sudoku-jev";
 export interface ChoiceQuestion {
   type: "choice";
   instructions: string;
-  criteria: Record<string, MoveCriteria>;
+  criteria: Record<string, object>;
 }
 
 /** Structured option description. Jev reads these as the option's meaning. */
@@ -30,7 +32,7 @@ export interface MoveCriteria {
 
 export interface DecisionRequest {
   model: string;
-  state: BoardState;
+  state: object;
   questions: Record<string, ChoiceQuestion>;
 }
 
@@ -65,6 +67,10 @@ export interface Decision {
 
 export interface DecideClient {
   decide(board: Board, moves: Move[]): Promise<Decision | null>;
+}
+
+export interface GameClient extends DecideClient {
+  decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessJevDecision | null>;
 }
 
 // endregion: request types
@@ -179,7 +185,7 @@ export interface JevClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-export class JevClient implements DecideClient {
+export class JevClient implements GameClient {
   private readonly apiKey: string;
   private readonly url: string;
   private readonly model: string;
@@ -193,12 +199,7 @@ export class JevClient implements DecideClient {
     this.fetchImpl = options.fetchImpl ?? null;
   }
 
-  /** Asks Jev for one move out of `moves`. Returns null when the model picked nothing usable. */
-  async decide(board: Board, moves: Move[]): Promise<Decision | null> {
-    if (moves.length === 0) {
-      return null;
-    }
-    const request = buildRequest(this.model, board, moves);
+  async submit(request: DecisionRequest): Promise<DecisionResponse> {
     const init: RequestInit = {
       method: "POST",
       headers: {
@@ -213,8 +214,23 @@ export class JevClient implements DecideClient {
       const text = await response.text();
       throw new JevError(`OpenRouter answered ${response.status}: ${text}`, response.status);
     }
-    const body = (await response.json()) as DecisionResponse;
-    return pickBest(body, moves);
+    return (await response.json()) as DecisionResponse;
+  }
+
+  /** Asks Jev for one move out of `moves`. Returns null when the model picked nothing usable. */
+  async decide(board: Board, moves: Move[]): Promise<Decision | null> {
+    if (moves.length === 0) {
+      return null;
+    }
+    return pickBest(await this.submit(buildRequest(this.model, board, moves)), moves);
+  }
+
+  /** Asks Jev for one chess move out of `moves`. Returns null when the model picked nothing usable. */
+  async decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessJevDecision | null> {
+    if (moves.length === 0) {
+      return null;
+    }
+    return pickBestChess(await this.submit(buildChessRequest(this.model, fen, moves)), moves);
   }
 }
 // endregion: client

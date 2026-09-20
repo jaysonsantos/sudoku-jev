@@ -6,10 +6,10 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 
 | Path | Purpose |
 |---|---|
-| `shared/src/` | Sudoku rules, generator, solver, protocol types. Used by both trees. |
-| `backend/src/` | Node HTTP and websocket server. Asks Jev for one move per state. |
+| `shared/src/` | Sudoku and chess rules, generator, solver, protocol types. Used by both trees. |
+| `backend/src/` | Node HTTP and websocket server. Asks Jev for one move per state (sudoku or chess). |
 | `cloudflare/src/` | Worker plus Durable Object. Terminates `/ws` on Cloudflare. Reuses `backend/` Jev code. |
-| `frontend/src/` | React single page app. Makes the puzzle, keeps the solution, applies moves. The loop runs only after the Solve click. |
+| `frontend/src/` | React SPA. `/` is sudoku; `/chess` is two-player Jev chess with chessboard.js. |
 | `test/` | `node --test` suites for `shared/`, `backend/`, and `cloudflare/`. |
 | `scripts/` | `lint.sh`, `test.sh`, `all.sh`, `release.sh`. CI runs the same scripts. |
 | `frontend/dist/` | Vite build output. The Node server and the Worker assets serve it. Not committed. |
@@ -34,7 +34,7 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 
 - Use pnpm, never npm.
 - Import with the `.ts` extension. The backend runs the sources with Node type stripping, so use no enums and no parameter properties.
-- Keep sudoku rules in `shared/`. Do not copy them into a tree.
+- Keep sudoku and chess rules in `shared/`. Do not copy them into a tree.
 - Put every limit and name in a constants block. No literal numbers or strings inside logic.
 - The client owns the solution and the game status. The server never sees the solution.
 - Message shapes live in `shared/src/types.ts`. Change them there only.
@@ -47,7 +47,15 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 - One choice question holds at most 255 options. The backend splits the legal moves into batches and sends every batch in one request.
 - Option ids are `row_R_col_C_value_V`, one based. The backend parses them back into moves.
 - Jev counts and calculates poorly. It reads `cell_candidates` in each option, which the code computes.
+- Chess option ids are `uci_e2e4`. The backend offers at most 150 legal UCIs (sorted, then sliced). Jev's pick is checked with chess.js. An illegal or unknown pick is dropped and the same position is asked once more. A second failure is an error.
 
 ## Cloudflare
 
-Cloudflare Workflows cannot host a WebSocket. The Worker serves `/healthz` and upgrades `/ws` to a `GameSession` Durable Object (binding `GAME_SESSION`, one object per browser session, hibernation API). The frontend still opens same-origin `/ws`.
+Cloudflare Workflows cannot host a WebSocket. The Worker serves `/healthz` and upgrades `/ws` to a `GameSession` Durable Object (binding `GAME_SESSION`, one object per browser session, hibernation API). The frontend still opens same-origin `/ws`. SPA assets serve `/` and `/chess`.
+
+| Route | Handler |
+|---|---|
+| `/` | SPA (sudoku) |
+| `/chess` | SPA (two-player chess) |
+| `/ws` | Worker → `GameSession` (sudoku and chess messages) |
+| `/healthz` | Worker health |
