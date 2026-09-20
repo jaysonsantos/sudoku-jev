@@ -28,6 +28,8 @@ repos:
         name: typos
         entry: typos
         language: system
+        # Vendored chessboard.js piece images and their README trip binary-noise false positives.
+        exclude: ^frontend/public/chesspieces/
       - id: nixfmt
         name: nixfmt
         entry: nixfmt --check
