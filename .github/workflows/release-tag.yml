@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0
           # A deploy key, so the pushed tag starts release.yml. GITHUB_TOKEN starts no workflow.
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
-      - uses: DeterminateSystems/nix-installer-action@v20
+      - uses: DeterminateSystems/nix-installer-action@v23
       - name: Set the git identity
         run: |
           git config user.name "${{ github.actor }}"
