@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { ChessDecideClient } from "../../backend/src/chessGame.ts";
 import { answerChessState, parseChessStateMessage } from "../../backend/src/chessGame.ts";
 import type { ChessJevDecision } from "../../backend/src/chessJev.ts";
-import { JevClient, type DecisionResponse } from "../../backend/src/jev.ts";
+import { type DecisionResponse, JevClient } from "../../backend/src/jev.ts";
 import type { ChessMoveOption, ChessStateMessage } from "../../shared/src/index.ts";
 import {
   CHESS_ERROR,
@@ -103,7 +103,7 @@ test("answerChessState re-rolls once after an illegal pick then returns a legal 
 
 test("answerChessState re-asks through Jev when the choice is a black move for white", async () => {
   const choices: string[] = [];
-  const fetchImpl: typeof fetch = async (_input, init) => {
+  const fetchImpl: typeof fetch = async (_input, _init) => {
     const choice = choices.length === 0 ? "uci_d8e7" : "uci_e2e4";
     choices.push(choice);
     const body: DecisionResponse = {
