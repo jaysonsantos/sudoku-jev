@@ -83,10 +83,15 @@ function toColor(value: typeof CHESS_TURN.white | typeof CHESS_TURN.black): Ches
   return value === CHESS_TURN.white ? CHESS_COLOR.white : CHESS_COLOR.black;
 }
 
+/** UCI is from+to, plus a promotion piece when the move promotes. */
+export function uciFromSquares(from: string, to: string, promotion: string | undefined): string {
+  return promotion === undefined ? `${from}${to}` : `${from}${to}${promotion}`;
+}
+
 export function legalChessMoves(fen: string): ChessMoveOption[] {
   const chess = new Chess(fen);
   return chess.moves({ verbose: true }).map((move) => ({
-    uci: move.lan,
+    uci: uciFromSquares(move.from, move.to, move.promotion),
     san: move.san,
     from: move.from,
     to: move.to,
@@ -110,6 +115,7 @@ export function applyUci(fen: string, uci: string): AppliedChessMove | null {
   if (parsed === null || !isValidFen(fen)) {
     return null;
   }
+  const expected = sideToMove(fen);
   const chess = new Chess(fen);
   try {
     const move = chess.move({
@@ -117,13 +123,17 @@ export function applyUci(fen: string, uci: string): AppliedChessMove | null {
       to: parsed.to,
       promotion: parsed.promotion,
     });
+    const color = toColor(move.color);
+    if (color !== expected) {
+      return null;
+    }
     return {
-      uci: move.lan,
+      uci: uciFromSquares(move.from, move.to, move.promotion),
       san: move.san,
       from: move.from,
       to: move.to,
       fen: chess.fen(),
-      color: toColor(move.color),
+      color,
     };
   } catch {
     return null;

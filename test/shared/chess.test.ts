@@ -53,6 +53,16 @@ test("applyUci and isLegalUci accept e2e4 and reject an illegal jump", () => {
   assert.equal(isValidFen("not-a-fen"), false);
 });
 
+test("a black queen move is illegal when white is to move", () => {
+  const beforeBlackQueenCheck = "rnbqk2r/pppp2pp/3b4/8/8/8/PPPN1PPP/R1BQKB1R w KQkq - 0 6";
+  const blackQueenToE7 = "d8e7";
+  assert.equal(sideToMove(beforeBlackQueenCheck), CHESS_COLOR.white);
+  assert.equal(isLegalUci(beforeBlackQueenCheck, blackQueenToE7), false);
+  assert.equal(applyUci(beforeBlackQueenCheck, blackQueenToE7), null);
+  assert.ok(!offeredChessMoves(beforeBlackQueenCheck, []).some((move) => move.uci === blackQueenToE7));
+  assert.equal(isLegalUci(STARTING_FEN, blackQueenToE7), false);
+});
+
 test("offeredChessMoves drops rejected UCIs and never exceeds 150", () => {
   const withoutE4 = offeredChessMoves(STARTING_FEN, ["e2e4"]);
   assert.equal(withoutE4.length, 19);

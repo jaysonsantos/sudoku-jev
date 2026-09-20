@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { ChessDecideClient } from "../../backend/src/chessGame.ts";
 import { answerChessState, parseChessStateMessage } from "../../backend/src/chessGame.ts";
 import type { ChessJevDecision } from "../../backend/src/chessJev.ts";
+import { JevClient, type DecisionResponse } from "../../backend/src/jev.ts";
 import type { ChessMoveOption, ChessStateMessage } from "../../shared/src/index.ts";
 import {
   CHESS_ERROR,
@@ -57,6 +58,28 @@ test("answerChessState maps a legal model choice to a chess decision", async () 
   }
 });
 
+test("answerChessState re-rolls a wrong-side pick that was not in the offered set", async () => {
+  const seen: string[][] = [];
+  const client: ChessDecideClient = {
+    decideChess: async (_fen, moves: ChessMoveOption[]) => {
+      seen.push(moves.map((move) => move.uci));
+      if (seen.length === 1) {
+        return decisionFor("d8e7", "Qe7+");
+      }
+      return decisionFor("e2e4", "e4");
+    },
+  };
+  const answer = await answerChessState(client, state());
+  assert.ok(isChessDecisionMessage(answer));
+  if (isChessDecisionMessage(answer)) {
+    assert.equal(answer.move.uci, "e2e4");
+    assert.equal(answer.rerolls, 1);
+  }
+  assert.equal(seen.length, 2);
+  assert.ok(!seen[0]?.includes("d8e7"));
+  assert.ok(!seen[1]?.includes("d8e7"));
+});
+
 test("answerChessState re-rolls once after an illegal pick then returns a legal move", async () => {
   const seen: string[][] = [];
   const client: ChessDecideClient = {
@@ -76,6 +99,39 @@ test("answerChessState re-rolls once after an illegal pick then returns a legal 
   }
   assert.equal(seen.length, 2);
   assert.ok(!seen[1]?.includes("a1a1"));
+});
+
+test("answerChessState re-asks through Jev when the choice is a black move for white", async () => {
+  const choices: string[] = [];
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    const choice = choices.length === 0 ? "uci_d8e7" : "uci_e2e4";
+    choices.push(choice);
+    const body: DecisionResponse = {
+      model: "m",
+      answers: {
+        move_batch_1: {
+          type: "choice",
+          choice,
+          probabilities: { uci_d8e7: 0.29, uci_e2e4: 0.1 },
+          confidence: 0.25,
+        },
+      },
+    };
+    return new Response(JSON.stringify(body), { status: 200 });
+  };
+  const client = new JevClient({
+    apiKey: "k",
+    url: "https://example.test/decisions",
+    model: "m",
+    fetchImpl,
+  });
+  const answer = await answerChessState(client, state());
+  assert.ok(isChessDecisionMessage(answer));
+  if (isChessDecisionMessage(answer)) {
+    assert.equal(answer.move.uci, "e2e4");
+    assert.equal(answer.rerolls, 1);
+  }
+  assert.deepEqual(choices, ["uci_d8e7", "uci_e2e4"]);
 });
 
 test("answerChessState errors after one failed re-roll", async () => {

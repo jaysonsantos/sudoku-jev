@@ -63,11 +63,28 @@ export function applyChessDecision(game: ChessGame, move: ChessMove): ChessGame 
   return {
     ...game,
     fen: applied.fen,
+    rejected: [],
     lastMove: { uci: applied.uci, san: applied.san, from: applied.from, to: applied.to },
     lastColor: applied.color,
     status: outcome?.status ?? GAME_STATUS.playing,
     reason: outcome?.reason ?? null,
   };
+}
+
+/** Records an illegal UCI so the next ask excludes it. Duplicates are ignored. */
+export function rejectChessMove(game: ChessGame, uci: string): ChessGame {
+  if (game.status !== GAME_STATUS.playing || game.rejected.includes(uci)) {
+    return game;
+  }
+  return { ...game, rejected: [...game.rejected, uci] };
+}
+
+export function applyOrRejectChessDecision(game: ChessGame, move: ChessMove): ChessGame {
+  const applied = applyChessDecision(game, move);
+  if (applied.fen !== game.fen) {
+    return applied;
+  }
+  return rejectChessMove(game, move.uci);
 }
 
 export function toChessStateMessage(game: ChessGame): ChessStateMessage {
