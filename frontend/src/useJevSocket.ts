@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ClientMessage, ServerMessage } from "../../shared/src/index.ts";
 import { MESSAGE_TYPE, WS_PATH } from "../../shared/src/index.ts";
 import { RECONNECT_DELAY_MS } from "./constants.ts";
@@ -83,5 +83,5 @@ export function useJevSocket(onMessage: (message: ServerMessage) => void): JevSo
     return true;
   }, []);
 
-  return { status, send };
+  return useMemo(() => ({ status, send }), [status, send]);
 }
