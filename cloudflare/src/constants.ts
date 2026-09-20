@@ -33,6 +33,7 @@ export const BODY = {
   expectedUpgrade: "expected Upgrade: websocket",
   expectedGet: "expected GET",
   missingApiKey: "OPENROUTER_API_KEY is not set",
+  missingBinding: "GAME_SESSION binding is missing",
   notFound: "not found",
 } as const;
 // endregion: http

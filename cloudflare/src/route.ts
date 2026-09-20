@@ -27,15 +27,15 @@ export async function handleRequest(request: Request, env: WorkerEnv): Promise<R
   if (path !== WS_PATH) {
     return textResponse(BODY.notFound, STATUS.notFound);
   }
-  if (env.OPENROUTER_API_KEY.length === 0) {
-    return textResponse(BODY.missingApiKey, STATUS.serverError);
-  }
   if (!isWebSocketUpgrade(request)) {
     return textResponse(BODY.expectedUpgrade, STATUS.upgradeRequired);
   }
   if (request.method !== GET_METHOD) {
     return textResponse(BODY.expectedGet, STATUS.badRequest);
   }
-  const stub = env.GAME_SESSION.getByName(crypto.randomUUID());
-  return stub.fetch(request);
+  const binding = env.GAME_SESSION;
+  if (binding === undefined) {
+    return textResponse(BODY.missingBinding, STATUS.serverError);
+  }
+  return binding.getByName(crypto.randomUUID()).fetch(request);
 }

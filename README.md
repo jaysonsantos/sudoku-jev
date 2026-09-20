@@ -91,6 +91,8 @@ pnpm exec wrangler secret put OPENROUTER_API_KEY
 pnpm cf:deploy
 ```
 
+A missing `OPENROUTER_API_KEY` must not crash the Worker. `/ws` still upgrades; Solve then answers that the key is not set. Put the secret on the Worker before the loop can call OpenRouter.
+
 `OPENROUTER_URL` and `JEV_MODEL` are Wrangler vars with the same defaults as the Node server. After deploy the browser talks to `wss://<worker-host>/ws`.
 
 A preview upload (`wrangler versions upload`, used by Workers Builds on non-`main` branches) cannot create the `GameSession` namespace. The first production `wrangler deploy` (or the Workers Build on `main`) provisions the Durable Object and binds `GAME_SESSION`.
