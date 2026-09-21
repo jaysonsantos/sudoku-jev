@@ -9,6 +9,8 @@ import {
   MAX_MISTAKES,
   MESSAGE_TYPE,
 } from "../../shared/src/index.ts";
+import { ZERO_COST } from "./constants.ts";
+import { addGameCost } from "./cost.ts";
 
 // region: model
 export interface Game {
@@ -21,6 +23,8 @@ export interface Game {
   status: GameStatus;
   lastMove: Move | null;
   lastWasWrong: boolean;
+  /** Accumulated OpenRouter USD cost for this puzzle. */
+  cost: number;
 }
 
 export function newGame(): Game {
@@ -35,6 +39,7 @@ export function newGame(): Game {
     status: GAME_STATUS.playing,
     lastMove: null,
     lastWasWrong: false,
+    cost: ZERO_COST,
   };
 }
 
@@ -70,6 +75,15 @@ export function applyMove(game: Game, move: Move): Game {
     lastMove: move,
     lastWasWrong: false,
   };
+}
+
+export function addPuzzleCost(game: Game, cost: number | undefined): Game {
+  return addGameCost(game, cost);
+}
+
+/** Applies the placement and always adds billed Jev cost, even after the puzzle ends. */
+export function applySudokuDecision(game: Game, move: Move, cost: number | undefined): Game {
+  return addPuzzleCost(applyMove(game, move), cost);
 }
 
 export function toStateMessage(game: Game): StateMessage {

@@ -52,6 +52,7 @@ test("answerState maps a model choice to a decision", async () => {
       confidence: 0.8,
       options_considered: 728,
       questions_asked: 3,
+      cost: 0.0123,
     }),
   };
   const answer = await answerState(client, state());
@@ -60,5 +61,6 @@ test("answerState maps a model choice to a decision", async () => {
     assert.deepEqual(answer.move, move);
     assert.equal(answer.probability, 0.9);
     assert.equal(answer.questions_asked, 3);
+    assert.equal(answer.cost, 0.0123);
   }
 });
