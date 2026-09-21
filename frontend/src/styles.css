@@ -181,11 +181,13 @@ header h1 {
   width: 20rem;
 }
 
-.player-state {
+.player-state,
+.game-state {
   margin: 0.75rem 0 0;
 }
 
-.player-state div {
+.player-state div,
+.game-state div {
   display: grid;
   grid-template-columns: 8rem 1fr;
   gap: 0.25rem 0.75rem;
@@ -193,12 +195,18 @@ header h1 {
   font-size: 0.75rem;
 }
 
-.player-state dt {
+.player-state dt,
+.game-state dt {
   margin: 0;
   color: var(--line);
 }
 
-.player-state dd {
+.player-state dd,
+.game-state dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.nav-github {
+  margin-left: auto;
 }

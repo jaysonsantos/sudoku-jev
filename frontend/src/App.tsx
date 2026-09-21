@@ -5,9 +5,18 @@ import { BoardView } from "./components/BoardView.tsx";
 import type { LogLine } from "./components/LogView.tsx";
 import { LogView } from "./components/LogView.tsx";
 import { NAV_PAGE, Nav } from "./components/Nav.tsx";
-import { MAX_LOG_LINES, PERCENT, STEP_DELAY_MS } from "./constants.ts";
+import {
+  MAX_LOG_LINES,
+  MISTAKES_LABEL,
+  PERCENT,
+  PUZZLE_COST_LABEL,
+  STEP_DELAY_MS,
+  SUDOKU_BOARD_SECTION_LABEL,
+  SUDOKU_STATE_LABEL,
+} from "./constants.ts";
+import { formatPuzzleCost, formatUsd } from "./cost.ts";
 import type { Game } from "./game.ts";
-import { applyMove, newGame, toStateMessage } from "./game.ts";
+import { applySudokuDecision, newGame, toStateMessage } from "./game.ts";
 import { SOCKET_STATUS, useJevSocket } from "./useJevSocket.ts";
 
 function formatCell(row: number, col: number): string {
@@ -45,7 +54,7 @@ export function App() {
           if (isChessDecisionMessage(message)) {
             return;
           }
-          const next = applyMove(current, message.move);
+          const next = applySudokuDecision(current, message.move, message.cost);
           const cell = formatCell(message.move.row, message.move.col);
           const stats = `p=${formatPercent(message.probability)} conf=${formatPercent(message.confidence)} options=${message.options_considered} in ${message.latency_ms}ms`;
           log(
@@ -54,8 +63,10 @@ export function App() {
           );
           if (next.status === GAME_STATUS.won) {
             log("info", "solved");
+            log("info", formatPuzzleCost(next.cost));
           } else if (next.status === GAME_STATUS.lost) {
             log("info", `lost after ${next.mistakes} mistakes`);
+            log("info", formatPuzzleCost(next.cost));
           }
           setGame(next);
           break;
@@ -63,7 +74,11 @@ export function App() {
         case MESSAGE_TYPE.finished:
           log("info", `server: ${message.reason}`);
           if (message.status !== current.status) {
-            setGame({ ...current, status: message.status });
+            const next = { ...current, status: message.status };
+            if (current.status === GAME_STATUS.playing) {
+              log("info", formatPuzzleCost(next.cost));
+            }
+            setGame(next);
           }
           break;
         case MESSAGE_TYPE.error:
@@ -125,7 +140,10 @@ export function App() {
           <span className={`status socket-${socket.status}`}>socket: {socket.status}</span>
           <span className={`status game-${game.status}`}>game: {game.status}</span>
           <span>
-            mistakes: {game.mistakes}/{MAX_MISTAKES}
+            {MISTAKES_LABEL}: {game.mistakes}/{MAX_MISTAKES}
+          </span>
+          <span className={game.status === GAME_STATUS.playing ? "match-cost" : "match-cost final"}>
+            {formatPuzzleCost(game.cost)}
           </span>
           <button type="button" onClick={toggleSolve} disabled={!canSolve}>
             {solving ? "Pause" : "Solve"}
@@ -136,7 +154,21 @@ export function App() {
         </p>
       </header>
       <section className="layout">
-        <BoardView game={game} />
+        <section className="sudoku-board" aria-label={SUDOKU_BOARD_SECTION_LABEL}>
+          <BoardView game={game} />
+          <dl className="game-state" aria-label={SUDOKU_STATE_LABEL}>
+            <div>
+              <dt>{MISTAKES_LABEL}</dt>
+              <dd>
+                {game.mistakes}/{MAX_MISTAKES}
+              </dd>
+            </div>
+            <div>
+              <dt>{PUZZLE_COST_LABEL}</dt>
+              <dd>{formatUsd(game.cost)}</dd>
+            </div>
+          </dl>
+        </section>
         <LogView lines={lines} />
       </section>
     </main>
