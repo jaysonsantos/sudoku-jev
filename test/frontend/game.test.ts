@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EMPTY, GAME_STATUS } from "../../shared/src/index.ts";
 import { GITHUB_REPO_URL } from "../../frontend/src/constants.ts";
 import { addPuzzleCost, applySudokuDecision, newGame } from "../../frontend/src/game.ts";
+import { EMPTY, GAME_STATUS } from "../../shared/src/index.ts";
 
 function firstSolutionMove(game: ReturnType<typeof newGame>): { row: number; col: number; value: number } {
   for (let row = 0; row < game.board.length; row += 1) {
