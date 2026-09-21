@@ -20,6 +20,7 @@ const CONTENT_TYPES: Record<string, string> = {
   ".json": "application/json",
   ".ico": "image/x-icon",
   ".png": "image/png",
+  ".wasm": "application/wasm",
 };
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
