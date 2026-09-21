@@ -72,7 +72,7 @@ Layout: `shared/` holds the sudoku and chess rules and message types, `backend/`
 2. The backend lists legal UCIs with chess.js, sorts them, and keeps at most 150. Option ids look like `uci_e2e4`.
 3. Jev returns the most probable play. The backend checks the pick is legal. An illegal or unknown pick is dropped and the same position is asked once more. A second failure is an error.
 4. Stockfish is [nmrugg/stockfish.js](https://github.com/nmrugg/stockfish.js) (`stockfish` npm). `/chess` loads the lite single-thread WASM worker only. A legal UCI is applied locally. An illegal UCI is retried a small number of times, then the game pauses.
-5. The browser applies a legal move on the shared board and the other color becomes the side to move.
+5. The browser applies a legal move on the shared board and the other color becomes the side to move. Each Jev decision carries OpenRouter `usage.cost`. Stockfish turns cost `$0`. When the game ends, the UI shows `match cost: $0.0123`.
 
 ## Cloudflare
 

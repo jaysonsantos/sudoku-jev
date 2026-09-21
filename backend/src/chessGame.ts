@@ -11,11 +11,13 @@ import {
   MESSAGE_TYPE,
   offeredChessMoves,
 } from "../../shared/src/index.ts";
-import type { ChessJevDecision } from "./chessJev.ts";
+import type { ChessDecideResult } from "./chessJev.ts";
 
 export interface ChessDecideClient {
-  decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessJevDecision | null>;
+  decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessDecideResult>;
 }
+
+const ZERO_COST = 0;
 
 // region: parsing
 export function parseChessStateMessage(raw: string): ChessStateMessage {
@@ -83,6 +85,7 @@ export async function answerChessState(client: ChessDecideClient, state: ChessSt
 
   const rejected = [...state.rejected];
   let rerolls = 0;
+  let cost = ZERO_COST;
   const started = performance.now();
 
   while (true) {
@@ -95,7 +98,9 @@ export async function answerChessState(client: ChessDecideClient, state: ChessSt
         reason: CHESS_FINISH_REASON.noLegalMove,
       };
     }
-    const decision = await client.decideChess(state.fen, moves);
+    const result = await client.decideChess(state.fen, moves);
+    cost += result.cost;
+    const decision = result.decision;
     if (decision !== null && isOfferedLegal(state.fen, decision.move.uci, moves)) {
       return {
         type: MESSAGE_TYPE.decision,
@@ -108,6 +113,7 @@ export async function answerChessState(client: ChessDecideClient, state: ChessSt
         questions_asked: decision.questions_asked,
         latency_ms: Math.round(performance.now() - started),
         rerolls,
+        cost,
       };
     }
     if (rerolls >= CHESS_ILLEGAL_REROLLS) {

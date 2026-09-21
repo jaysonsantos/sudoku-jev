@@ -78,6 +78,7 @@ export async function answerState(client: DecideClient, state: StateMessage): Pr
     options_considered: decision.options_considered,
     questions_asked: decision.questions_asked,
     latency_ms: Math.round(performance.now() - started),
+    cost: decision.cost,
   };
 }
 // endregion: decision

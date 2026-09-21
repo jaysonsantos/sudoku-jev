@@ -90,11 +90,37 @@ test("JevClient.decideChess posts a chess request and maps the answer", async ()
           confidence: 1,
         },
       },
+      usage: { input_tokens: 10, output_tokens: 2, cost: 0.0041 },
     };
     return new Response(JSON.stringify(body), { status: 200 });
   };
   const client = new JevClient({ apiKey: "k", url: "https://example.test/decisions", model: "m", fetchImpl });
-  const decision = await client.decideChess(STARTING_FEN, moves);
-  assert.equal(decision?.move.uci, "e2e4");
+  const result = await client.decideChess(STARTING_FEN, moves);
+  assert.equal(result.decision?.move.uci, "e2e4");
+  assert.equal(result.decision?.cost, 0.0041);
+  assert.equal(result.cost, 0.0041);
   assert.equal(seen[0]?.body.state.game, GAME_KIND.chess);
+});
+
+test("JevClient.decideChess keeps usage.cost when the pick is unusable", async () => {
+  const moves = legalChessMoves(STARTING_FEN).filter((move) => move.uci === "e2e4");
+  const fetchImpl: typeof fetch = async () => {
+    const body: DecisionResponse = {
+      model: "m",
+      answers: {
+        move_batch_1: {
+          type: "choice",
+          choice: "not-a-move",
+          probabilities: { unknown: 1 },
+          confidence: 0,
+        },
+      },
+      usage: { input_tokens: 10, output_tokens: 2, cost: 0.0041 },
+    };
+    return new Response(JSON.stringify(body), { status: 200 });
+  };
+  const client = new JevClient({ apiKey: "k", url: "https://example.test/decisions", model: "m", fetchImpl });
+  const result = await client.decideChess(STARTING_FEN, moves);
+  assert.equal(result.decision, null);
+  assert.equal(result.cost, 0.0041);
 });

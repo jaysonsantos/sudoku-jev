@@ -1,6 +1,6 @@
 import type { Board, ChessMoveOption, Move } from "../../shared/src/index.ts";
 import { candidatesFor, EMPTY } from "../../shared/src/index.ts";
-import type { ChessJevDecision } from "./chessJev.ts";
+import type { ChessDecideResult } from "./chessJev.ts";
 import { buildChessRequest, pickBestChess } from "./chessJev.ts";
 
 // region: limits
@@ -12,6 +12,7 @@ export const QUESTION_PREFIX = "move_batch_";
 export const OPTION_ID_PREFIX = "row_";
 const HTTP_TITLE_HEADER = "X-OpenRouter-Title";
 const APP_TITLE = "sudoku-jev";
+const ZERO_COST = 0;
 // endregion: limits
 
 // region: request types
@@ -63,6 +64,13 @@ export interface Decision {
   confidence: number;
   options_considered: number;
   questions_asked: number;
+  /** OpenRouter USD cost for the request that produced this pick. */
+  cost?: number;
+}
+
+export function openRouterCost(response: DecisionResponse): number {
+  const cost = response.usage?.cost;
+  return typeof cost === "number" && Number.isFinite(cost) && cost > ZERO_COST ? cost : ZERO_COST;
 }
 
 export interface DecideClient {
@@ -70,7 +78,7 @@ export interface DecideClient {
 }
 
 export interface GameClient extends DecideClient {
-  decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessJevDecision | null>;
+  decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessDecideResult>;
 }
 
 // endregion: request types
@@ -222,15 +230,26 @@ export class JevClient implements GameClient {
     if (moves.length === 0) {
       return null;
     }
-    return pickBest(await this.submit(buildRequest(this.model, board, moves)), moves);
-  }
-
-  /** Asks Jev for one chess move out of `moves`. Returns null when the model picked nothing usable. */
-  async decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessJevDecision | null> {
-    if (moves.length === 0) {
+    const response = await this.submit(buildRequest(this.model, board, moves));
+    const picked = pickBest(response, moves);
+    if (picked === null) {
       return null;
     }
-    return pickBestChess(await this.submit(buildChessRequest(this.model, fen, moves)), moves);
+    return { ...picked, cost: openRouterCost(response) };
+  }
+
+  /** Asks Jev for one chess move. Cost is kept even when the pick is unusable. */
+  async decideChess(fen: string, moves: ChessMoveOption[]): Promise<ChessDecideResult> {
+    if (moves.length === 0) {
+      return { decision: null, cost: ZERO_COST };
+    }
+    const response = await this.submit(buildChessRequest(this.model, fen, moves));
+    const cost = openRouterCost(response);
+    const picked = pickBestChess(response, moves);
+    if (picked === null) {
+      return { decision: null, cost };
+    }
+    return { decision: { ...picked, cost }, cost };
   }
 }
 // endregion: client

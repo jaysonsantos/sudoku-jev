@@ -16,9 +16,16 @@ import type { ChessPlayer } from "../constants.ts";
 import {
   CHESS_PLAYER,
   CHESS_PLAYER_PAIRING_SPLIT,
+  COST_CURRENCY,
+  COST_DECIMALS,
+  COST_LABEL_SEPARATOR,
+  COST_SMALL_DECIMALS,
+  COST_SMALL_THRESHOLD,
+  MATCH_COST_LABEL,
   PAIRING_VS,
   PLAYER_COLOR_SEPARATOR,
   PLAYER_LABEL,
+  ZERO_COST,
 } from "../constants.ts";
 
 const ASK_KEY_SEPARATOR = "\0";
@@ -38,6 +45,8 @@ export interface ChessGame {
   lastColor: ChessColor | null;
   clocks: ChessClocks;
   players: ChessPlayers;
+  /** Accumulated OpenRouter USD cost. Stockfish turns add nothing. */
+  cost: number;
 }
 
 export function assignChessPlayers(random: () => number = Math.random): ChessPlayers {
@@ -66,7 +75,32 @@ export function newChessGame(random: () => number = Math.random): ChessGame {
     lastColor: null,
     clocks: startingClocks(),
     players: assignChessPlayers(random),
+    cost: ZERO_COST,
   };
+}
+
+export function decisionCost(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > ZERO_COST ? value : ZERO_COST;
+}
+
+export function addMatchCost(game: ChessGame, cost: number | undefined): ChessGame {
+  const extra = decisionCost(cost);
+  if (extra === ZERO_COST) {
+    return game;
+  }
+  return { ...game, cost: game.cost + extra };
+}
+
+export function formatUsd(amount: number): string {
+  if (amount <= ZERO_COST) {
+    return `${COST_CURRENCY}${ZERO_COST}`;
+  }
+  const decimals = amount < COST_SMALL_THRESHOLD ? COST_SMALL_DECIMALS : COST_DECIMALS;
+  return `${COST_CURRENCY}${amount.toFixed(decimals)}`;
+}
+
+export function formatMatchCost(amount: number): string {
+  return `${MATCH_COST_LABEL}${COST_LABEL_SEPARATOR}${formatUsd(amount)}`;
 }
 
 export function tickChessGame(game: ChessGame, elapsedMs: number): ChessGame {
@@ -147,6 +181,20 @@ export function shouldAskJev(game: ChessGame): boolean {
 
 export function shouldAskStockfish(game: ChessGame): boolean {
   return chessActorToMove(game) === CHESS_PLAYER.stockfish;
+}
+
+/**
+ * Pause cancels a Stockfish search, so waiting can clear.
+ * An in-flight Jev /ws ask stays marked so Play cannot bill the same position twice.
+ */
+export function retainJevAskOnPause(game: ChessGame): boolean {
+  return shouldAskJev(game);
+}
+
+/** Adds billed Jev cost even when the move is stale or the game is no longer playing. */
+export function applyJevDecisionMessage(game: ChessGame, move: ChessMove, cost: number | undefined): ChessGame {
+  const next = shouldAskJev(game) ? applyOrRejectChessDecision(game, move) : game;
+  return addMatchCost(next, cost);
 }
 
 export async function decideStockfishMove(
