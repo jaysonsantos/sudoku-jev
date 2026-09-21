@@ -1,14 +1,23 @@
 import { DurableObject } from "cloudflare:workers";
 import { JevClient } from "../../backend/src/jev.ts";
-import { STATUS } from "./constants.ts";
-import type { WorkerEnv } from "./env.ts";
+import { MESSAGE_TYPE } from "../../shared/src/index.ts";
+import { BODY, STATUS } from "./constants.ts";
+import { readSecret, type WorkerEnv } from "./env.ts";
 import { respondToSocketText, textFromSocketMessage } from "./handle.ts";
 
 function clientFromEnv(env: WorkerEnv): JevClient {
   return new JevClient({
-    apiKey: env.OPENROUTER_API_KEY,
+    apiKey: readSecret(env.OPENROUTER_API_KEY),
     url: env.OPENROUTER_URL,
     model: env.JEV_MODEL,
+  });
+}
+
+function missingKeyMessage(): string {
+  return JSON.stringify({
+    type: MESSAGE_TYPE.error,
+    game_id: null,
+    message: BODY.missingApiKey,
   });
 }
 
@@ -26,6 +35,10 @@ export class GameSession extends DurableObject<WorkerEnv> {
   }
 
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (readSecret(this.env.OPENROUTER_API_KEY).length === 0) {
+      socket.send(missingKeyMessage());
+      return;
+    }
     const answer = await respondToSocketText(clientFromEnv(this.env), textFromSocketMessage(message));
     socket.send(JSON.stringify(answer));
   }

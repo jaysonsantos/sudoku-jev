@@ -9,7 +9,7 @@ import {
   WEBSOCKET_TOKEN,
   WORKER_ENTRY,
 } from "../../cloudflare/src/constants.ts";
-import type { WorkerEnv } from "../../cloudflare/src/env.ts";
+import { readSecret, type WorkerEnv } from "../../cloudflare/src/env.ts";
 import { handleRequest, healthResponse, isWebSocketUpgrade } from "../../cloudflare/src/route.ts";
 import { CHESS_PATH, HEALTH_BODY, HEALTH_PATH, SUDOKU_PATH, WS_PATH } from "../../shared/src/index.ts";
 
@@ -31,6 +31,20 @@ function env(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
     ...overrides,
   };
 }
+
+test("readSecret treats a missing Worker secret as empty", () => {
+  assert.equal(readSecret(undefined), "");
+  assert.equal(readSecret(""), "");
+  assert.equal(readSecret("k"), "k");
+});
+
+test("handleRequest upgrades without an API key", async () => {
+  const response = await handleRequest(
+    new Request(`${ORIGIN}${WS_PATH}`, { headers: { Upgrade: WEBSOCKET_TOKEN } }),
+    env({ OPENROUTER_API_KEY: undefined }),
+  );
+  assert.equal(response.status, STATUS.ok);
+});
 
 test("healthResponse answers ok", async () => {
   const response = healthResponse();
@@ -55,10 +69,9 @@ test("handleRequest serves healthz and 404s unknown paths", async () => {
   assert.equal(await missing.text(), BODY.notFound);
 });
 
-test("handleRequest rejects a misconfigured or non-upgrade /ws", async () => {
-  const noKey = await handleRequest(new Request(`${ORIGIN}${WS_PATH}`), env({ OPENROUTER_API_KEY: "" }));
-  assert.equal(noKey.status, STATUS.serverError);
-  assert.equal(await noKey.text(), BODY.missingApiKey);
+test("handleRequest rejects a non-upgrade /ws", async () => {
+  const unsetKey = await handleRequest(new Request(`${ORIGIN}${WS_PATH}`), env({ OPENROUTER_API_KEY: undefined }));
+  assert.equal(unsetKey.status, STATUS.upgradeRequired);
 
   const noUpgrade = await handleRequest(new Request(`${ORIGIN}${WS_PATH}`), env());
   assert.equal(noUpgrade.status, STATUS.upgradeRequired);
@@ -68,6 +81,15 @@ test("handleRequest rejects a misconfigured or non-upgrade /ws", async () => {
     env(),
   );
   assert.equal(post.status, STATUS.badRequest);
+});
+
+test("handleRequest answers 500 when the Durable Object binding is missing", async () => {
+  const response = await handleRequest(
+    new Request(`${ORIGIN}${WS_PATH}`, { headers: { Upgrade: WEBSOCKET_TOKEN } }),
+    env({ GAME_SESSION: undefined }),
+  );
+  assert.equal(response.status, STATUS.serverError);
+  assert.equal(await response.text(), BODY.missingBinding);
 });
 
 test("handleRequest forwards a websocket upgrade to a new Durable Object", async () => {
