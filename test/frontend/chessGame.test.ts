@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  addMatchCost,
   applyChessDecision,
   applyOrRejectChessDecision,
   assignChessPlayers,
   chessActorToMove,
   chessAskKey,
   decideStockfishMove,
+  formatMatchCost,
   formatPlayerColorLabel,
+  formatUsd,
   newChessGame,
   pairingSummary,
   rejectChessMove,
@@ -157,6 +160,33 @@ test("decideStockfishMove retries an illegal UCI then applies a legal one", asyn
     assert.equal(result.move.uci, E2E4.uci);
     assert.deepEqual(result.game.rejected, []);
   }
+});
+
+test("a Stockfish move applied to a ticked game keeps the latest clocks", () => {
+  const game = newChessGame(() => 1);
+  const ticked = tickChessGame(game, CHESS_CLOCK_TICK_MS);
+  const applied = applyChessDecision(ticked, E2E4);
+  assert.equal(applied.clocks.white, ticked.clocks.white);
+  assert.notEqual(applied.clocks.white, game.clocks.white);
+  assert.equal(applied.lastMove?.uci, E2E4.uci);
+  assert.equal(applied.cost, game.cost);
+});
+
+test("addMatchCost accumulates Jev USD and Stockfish adds nothing", () => {
+  const game = newChessGame(() => 0);
+  assert.equal(game.cost, 0);
+  const withCost = addMatchCost(game, 0.0123);
+  assert.equal(withCost.cost, 0.0123);
+  const afterStockfish = applyChessDecision(withCost, E2E4);
+  assert.equal(afterStockfish.cost, 0.0123);
+  assert.equal(addMatchCost(withCost, undefined).cost, 0.0123);
+});
+
+test("formatMatchCost prints small OpenRouter amounts", () => {
+  assert.equal(formatUsd(0), "$0");
+  assert.equal(formatMatchCost(0), "match cost: $0");
+  assert.equal(formatMatchCost(0.0123), "match cost: $0.0123");
+  assert.equal(formatMatchCost(0.000012), "match cost: $0.000012");
 });
 
 test("decideStockfishMove fails after retries and does not change the FEN", async () => {

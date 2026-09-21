@@ -26,13 +26,14 @@ function state(overrides: Partial<ChessStateMessage> = {}): ChessStateMessage {
   };
 }
 
-function decisionFor(uci: string, san: string): ChessJevDecision {
+function decisionFor(uci: string, san: string, cost = 0): ChessJevDecision {
   return {
     move: { uci, san, from: uci.slice(0, 2), to: uci.slice(2, 4) },
     probability: 0.8,
     confidence: 0.6,
     options_considered: 20,
     questions_asked: 1,
+    cost,
   };
 }
 
@@ -47,7 +48,7 @@ test("parseChessStateMessage accepts a valid chess state and rejects garbage", (
 
 test("answerChessState maps a legal model choice to a chess decision", async () => {
   const client: ChessDecideClient = {
-    decideChess: async () => decisionFor("e2e4", "e4"),
+    decideChess: async () => decisionFor("e2e4", "e4", 0.0123),
   };
   const answer = await answerChessState(client, state());
   assert.ok(isChessDecisionMessage(answer));
@@ -55,6 +56,7 @@ test("answerChessState maps a legal model choice to a chess decision", async () 
     assert.equal(answer.game, GAME_KIND.chess);
     assert.equal(answer.move.uci, "e2e4");
     assert.equal(answer.rerolls, 0);
+    assert.equal(answer.cost, 0.0123);
   }
 });
 
@@ -64,9 +66,9 @@ test("answerChessState re-rolls a wrong-side pick that was not in the offered se
     decideChess: async (_fen, moves: ChessMoveOption[]) => {
       seen.push(moves.map((move) => move.uci));
       if (seen.length === 1) {
-        return decisionFor("d8e7", "Qe7+");
+        return decisionFor("d8e7", "Qe7+", 0.01);
       }
-      return decisionFor("e2e4", "e4");
+      return decisionFor("e2e4", "e4", 0.02);
     },
   };
   const answer = await answerChessState(client, state());
@@ -74,6 +76,7 @@ test("answerChessState re-rolls a wrong-side pick that was not in the offered se
   if (isChessDecisionMessage(answer)) {
     assert.equal(answer.move.uci, "e2e4");
     assert.equal(answer.rerolls, 1);
+    assert.equal(answer.cost, 0.03);
   }
   assert.equal(seen.length, 2);
   assert.ok(!seen[0]?.includes("d8e7"));

@@ -6,6 +6,7 @@ import {
   chunk,
   JevClient,
   MAX_OPTIONS_PER_QUESTION,
+  openRouterCost,
   optionId,
   parseOptionId,
   pickBest,
@@ -95,7 +96,17 @@ test("JevClient sends the request and maps the answer", async () => {
   const client = new JevClient({ apiKey: "k", url: "https://example.test/decisions", model: "m", fetchImpl });
   const decision = await client.decide(board, moves);
   assert.deepEqual(decision?.move, moves[0]);
+  assert.equal(decision?.cost, 0);
   assert.equal(seen[0]?.url, "https://example.test/decisions");
   assert.equal(seen[0]?.auth, "Bearer k");
   assert.equal(seen[0]?.body.model, "m");
+});
+
+test("openRouterCost reads usage.cost and treats missing as zero", () => {
+  assert.equal(openRouterCost({ model: "m", answers: {} }), 0);
+  assert.equal(openRouterCost({ model: "m", answers: {}, usage: { input_tokens: 1, output_tokens: 1 } }), 0);
+  assert.equal(
+    openRouterCost({ model: "m", answers: {}, usage: { input_tokens: 1, output_tokens: 1, cost: 0.0041 } }),
+    0.0041,
+  );
 });

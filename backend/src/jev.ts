@@ -63,6 +63,13 @@ export interface Decision {
   confidence: number;
   options_considered: number;
   questions_asked: number;
+  /** OpenRouter USD cost for the request that produced this pick. */
+  cost?: number;
+}
+
+export function openRouterCost(response: DecisionResponse): number {
+  const cost = response.usage?.cost;
+  return typeof cost === "number" && Number.isFinite(cost) && cost > 0 ? cost : 0;
 }
 
 export interface DecideClient {
@@ -222,7 +229,12 @@ export class JevClient implements GameClient {
     if (moves.length === 0) {
       return null;
     }
-    return pickBest(await this.submit(buildRequest(this.model, board, moves)), moves);
+    const response = await this.submit(buildRequest(this.model, board, moves));
+    const picked = pickBest(response, moves);
+    if (picked === null) {
+      return null;
+    }
+    return { ...picked, cost: openRouterCost(response) };
   }
 
   /** Asks Jev for one chess move out of `moves`. Returns null when the model picked nothing usable. */
@@ -230,7 +242,12 @@ export class JevClient implements GameClient {
     if (moves.length === 0) {
       return null;
     }
-    return pickBestChess(await this.submit(buildChessRequest(this.model, fen, moves)), moves);
+    const response = await this.submit(buildChessRequest(this.model, fen, moves));
+    const picked = pickBestChess(response, moves);
+    if (picked === null) {
+      return null;
+    }
+    return { ...picked, cost: openRouterCost(response) };
   }
 }
 // endregion: client

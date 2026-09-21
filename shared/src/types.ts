@@ -58,6 +58,8 @@ export interface DecisionMessage {
   options_considered: number;
   questions_asked: number;
   latency_ms: number;
+  /** OpenRouter USD cost for this call. Omitted by older servers. */
+  cost?: number;
 }
 
 /** Server to client: the game is over or has no legal move. Nothing else follows. */
@@ -106,6 +108,8 @@ export interface ChessDecisionMessage {
   latency_ms: number;
   /** `0` on the first legal pick. `1` when the first pick was illegal and the re-roll succeeded. */
   rerolls: number;
+  /** OpenRouter USD cost for this ask, including any re-roll. Omitted by older servers. */
+  cost?: number;
 }
 
 export type ClientMessage = StateMessage | ChessStateMessage;

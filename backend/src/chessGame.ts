@@ -83,6 +83,7 @@ export async function answerChessState(client: ChessDecideClient, state: ChessSt
 
   const rejected = [...state.rejected];
   let rerolls = 0;
+  let cost = 0;
   const started = performance.now();
 
   while (true) {
@@ -96,6 +97,9 @@ export async function answerChessState(client: ChessDecideClient, state: ChessSt
       };
     }
     const decision = await client.decideChess(state.fen, moves);
+    if (decision !== null) {
+      cost += decision.cost ?? 0;
+    }
     if (decision !== null && isOfferedLegal(state.fen, decision.move.uci, moves)) {
       return {
         type: MESSAGE_TYPE.decision,
@@ -108,6 +112,7 @@ export async function answerChessState(client: ChessDecideClient, state: ChessSt
         questions_asked: decision.questions_asked,
         latency_ms: Math.round(performance.now() - started),
         rerolls,
+        cost,
       };
     }
     if (rerolls >= CHESS_ILLEGAL_REROLLS) {

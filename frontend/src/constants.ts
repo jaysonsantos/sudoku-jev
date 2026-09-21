@@ -54,3 +54,18 @@ export const STOCKFISH_ERROR = {
   timeout: "Stockfish timed out",
   illegalAfterRetry: "Stockfish returned no legal move after retries",
 } as const;
+export const CHESS_CLIENT_ERROR = {
+  sudokuDecision: "server sent a sudoku decision on /chess",
+  jevOnStockfishTurn: "ignored a Jev decision on Stockfish's turn",
+} as const;
+export const REJECTED_MOVE_PREFIX = "rejected illegal move ";
+export const PAUSED_LABEL = "paused";
+export const NEW_GAME_PREFIX = "new game: ";
+export const SERVER_PREFIX = "server: ";
+export const MATCH_COST_LABEL = "match cost";
+export const COST_LABEL_SEPARATOR = ": ";
+export const COST_CURRENCY = "$";
+export const COST_DECIMALS = 4;
+export const COST_SMALL_DECIMALS = 6;
+export const COST_SMALL_THRESHOLD = 0.0001;
+export const ZERO_COST = 0;
