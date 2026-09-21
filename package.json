@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
-    "@cloudflare/workers-types": "5.20260919.1",
+    "@cloudflare/workers-types": "5.20260921.1",
     "@types/jquery": "3.5.33",
     "@types/node": "26.6.1",
     "@types/react": "19.3.0",
