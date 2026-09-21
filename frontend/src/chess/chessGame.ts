@@ -192,11 +192,7 @@ export function retainJevAskOnPause(game: ChessGame): boolean {
 }
 
 /** Adds billed Jev cost even when the move is stale or the game is no longer playing. */
-export function applyJevDecisionMessage(
-  game: ChessGame,
-  move: ChessMove,
-  cost: number | undefined,
-): ChessGame {
+export function applyJevDecisionMessage(game: ChessGame, move: ChessMove, cost: number | undefined): ChessGame {
   const next = shouldAskJev(game) ? applyOrRejectChessDecision(game, move) : game;
   return addMatchCost(next, cost);
 }
