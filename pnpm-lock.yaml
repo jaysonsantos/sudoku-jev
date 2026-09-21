@@ -51,6 +51,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: 6.1.1
         version: 6.1.1(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.1))
+      stockfish:
+        specifier: 19.0.0
+        version: 19.0.0
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -929,6 +932,10 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
+  stockfish@19.0.0:
+    resolution: {integrity: sha512-jDyYLbqNpboQcMs5HodTHI2CrKL74zkQWb1+sgoNXw5HI6avTblW4G0X7afFt3BBOc6VbTSkOV64EUxm/DWSpg==}
+    hasBin: true
+
   supports-color@10.2.2:
     resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
     engines: {node: '>=18'}
@@ -1659,6 +1666,8 @@ snapshots:
       '@types/node': 26.6.1
 
   source-map-js@1.2.1: {}
+
+  stockfish@19.0.0: {}
 
   supports-color@10.2.2: {}
 

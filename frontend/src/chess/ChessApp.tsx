@@ -14,30 +14,42 @@ import { LogView } from "../components/LogView.tsx";
 import { NAV_PAGE, Nav } from "../components/Nav.tsx";
 import {
   ASKS_JEV_SUFFIX,
+  ASKS_STOCKFISH_SUFFIX,
+  CHESS_PLAYER,
   CHESS_TITLE,
   MAX_LOG_LINES,
   PERCENT,
-  PLAY_BOTH_LABEL,
-  PLAYER_TITLE,
+  PLAY_MATCH_LABEL,
   SHARED_BOARD_LABEL,
   SHARED_FEN_LABEL,
   SIDE_TO_MOVE_LABEL,
   STEP_DELAY_MS,
+  STOCKFISH_ERROR,
+  STOCKFISH_ILLEGAL_RETRIES,
+  STOCKFISH_LOG_TAG,
+  STOCKFISH_STATUS,
+  STOCKFISH_STATUS_PREFIX,
+  TURN_TO_MOVE,
   TURN_WAITING,
-  TURN_YOURS,
-  YOU_ARE_PREFIX,
 } from "../constants.ts";
 import { SOCKET_STATUS, useJevSocket } from "../useJevSocket.ts";
 import { ChessBoard } from "./ChessBoard.tsx";
 import type { ChessGame } from "./chessGame.ts";
 import {
   applyOrRejectChessDecision,
+  chessActorToMove,
   chessAskKey,
+  decideStockfishMove,
+  formatPlayerColorLabel,
   newChessGame,
+  pairingSummary,
   playerTurn,
+  shouldAskJev,
+  shouldAskStockfish,
   tickChessGame,
   toChessStateMessage,
 } from "./chessGame.ts";
+import { useStockfish } from "./useStockfish.ts";
 
 function formatPercent(value: number): string {
   return `${Math.round(value * PERCENT)}%`;
@@ -45,13 +57,14 @@ function formatPercent(value: number): string {
 
 function PlayerClock({ game, color }: { game: ChessGame; color: ChessColor }) {
   const turn = playerTurn(game, color);
+  const player = game.players[color];
   return (
-    <section className={turn ? "player-clock active" : "player-clock"} aria-label={PLAYER_TITLE[color]}>
-      <p className="player-color">
-        {YOU_ARE_PREFIX}
-        {color}
-      </p>
-      <p className={turn ? "turn-label active" : "turn-label"}>{turn ? TURN_YOURS : TURN_WAITING}</p>
+    <section
+      className={turn ? "player-clock active" : "player-clock"}
+      aria-label={formatPlayerColorLabel(player, color)}
+    >
+      <p className="player-color">{formatPlayerColorLabel(player, color)}</p>
+      <p className={turn ? "turn-label active" : "turn-label"}>{turn ? TURN_TO_MOVE : TURN_WAITING}</p>
       <time className="clock">{formatChessClock(game.clocks[color])}</time>
     </section>
   );
@@ -65,6 +78,9 @@ export function ChessApp() {
   const nextLineId = useRef(0);
   const gameRef = useRef(game);
   gameRef.current = game;
+  const stockfish = useStockfish();
+  const playingRef = useRef(playing);
+  playingRef.current = playing;
 
   useEffect(() => {
     document.title = CHESS_TITLE;
@@ -75,6 +91,10 @@ export function ChessApp() {
     const line: LogLine = { id: nextLineId.current, kind, text };
     setLines((previous) => [line, ...previous].slice(0, MAX_LOG_LINES));
   }, []);
+
+  useEffect(() => {
+    log("info", pairingSummary(gameRef.current));
+  }, [log]);
 
   const onMessage = useCallback(
     (message: ServerMessage) => {
@@ -87,6 +107,10 @@ export function ChessApp() {
         case MESSAGE_TYPE.decision: {
           if (!isChessDecisionMessage(message)) {
             log("error", "server sent a sudoku decision on /chess");
+            return;
+          }
+          if (!shouldAskJev(current)) {
+            log("error", "ignored a Jev decision on Stockfish's turn");
             return;
           }
           const next = applyOrRejectChessDecision(current, message.move);
@@ -125,22 +149,76 @@ export function ChessApp() {
   // CHESS_CLOCK_TICK_MS, which is shorter than STEP_DELAY_MS.
   useEffect(() => {
     const current = gameRef.current;
-    if (!playing || current.status !== GAME_STATUS.playing || socketStatus !== SOCKET_STATUS.open || waiting) {
+    if (!playing || current.status !== GAME_STATUS.playing || waiting) {
       return;
     }
+    const actor = chessActorToMove(current);
     const color = sideToMove(current.fen);
-    const timer = setTimeout(() => {
-      const latest = gameRef.current;
-      if (chessAskKey(latest) !== askKey) {
+    if (actor === CHESS_PLAYER.jev) {
+      if (socketStatus !== SOCKET_STATUS.open) {
         return;
       }
-      if (send(toChessStateMessage(latest))) {
-        setWaiting(true);
-        log("info", `${color}${ASKS_JEV_SUFFIX}`);
+      const timer = setTimeout(() => {
+        const latest = gameRef.current;
+        if (chessAskKey(latest) !== askKey || !shouldAskJev(latest)) {
+          return;
+        }
+        if (send(toChessStateMessage(latest))) {
+          setWaiting(true);
+          log("info", `${color}${ASKS_JEV_SUFFIX}`);
+        }
+      }, STEP_DELAY_MS);
+      return () => clearTimeout(timer);
+    }
+    if (actor === CHESS_PLAYER.stockfish) {
+      if (stockfish.status !== STOCKFISH_STATUS.ready) {
+        return;
       }
-    }, STEP_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [askKey, send, socketStatus, waiting, playing, log]);
+      const timer = setTimeout(() => {
+        const latest = gameRef.current;
+        if (chessAskKey(latest) !== askKey || !shouldAskStockfish(latest)) {
+          return;
+        }
+        setWaiting(true);
+        log("info", `${color}${ASKS_STOCKFISH_SUFFIX}`);
+        decideStockfishMove(latest, stockfish.bestMove, STOCKFISH_ILLEGAL_RETRIES)
+          .then((result) => {
+            if (!playingRef.current || chessAskKey(gameRef.current) !== askKey) {
+              return;
+            }
+            if (!result.ok) {
+              setGame(result.game);
+              setPlaying(false);
+              setWaiting(false);
+              log("error", STOCKFISH_ERROR.illegalAfterRetry);
+              return;
+            }
+            log("move", `${result.move.san} (${result.move.uci}) for ${result.game.lastColor} (${STOCKFISH_LOG_TAG})`);
+            if (result.game.status !== GAME_STATUS.playing && result.game.reason !== null) {
+              log("info", result.game.reason);
+            }
+            setGame(result.game);
+            setWaiting(false);
+          })
+          .catch((error: unknown) => {
+            if (!playingRef.current || chessAskKey(gameRef.current) !== askKey) {
+              return;
+            }
+            setPlaying(false);
+            setWaiting(false);
+            log("error", error instanceof Error ? error.message : STOCKFISH_ERROR.timeout);
+          });
+      }, STEP_DELAY_MS);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [askKey, send, socketStatus, waiting, playing, log, stockfish.bestMove, stockfish.status]);
+
+  useEffect(() => {
+    if (!playing) {
+      stockfish.stop();
+    }
+  }, [playing, stockfish.stop]);
 
   useEffect(() => {
     if (!playing || game.status !== GAME_STATUS.playing) {
@@ -165,24 +243,29 @@ export function ChessApp() {
   }, [game.status]);
 
   const restart = (): void => {
-    setGame(newChessGame());
+    const next = newChessGame();
+    setGame(next);
     setLines([]);
     setWaiting(false);
     setPlaying(false);
-    log("info", "new game");
+    log("info", `new game: ${pairingSummary(next)}`);
   };
 
   const togglePlay = (): void => {
     if (playing) {
       setPlaying(false);
+      stockfish.stop();
       log("info", "paused");
       return;
     }
     setPlaying(true);
-    log("info", PLAY_BOTH_LABEL);
+    log("info", `${PLAY_MATCH_LABEL}: ${pairingSummary(game)}`);
   };
 
-  const canPlay = game.status === GAME_STATUS.playing && socketStatus === SOCKET_STATUS.open;
+  const canPlay =
+    game.status === GAME_STATUS.playing &&
+    socketStatus === SOCKET_STATUS.open &&
+    stockfish.status === STOCKFISH_STATUS.ready;
   const turn = sideToMove(game.fen);
 
   return (
@@ -192,6 +275,10 @@ export function ChessApp() {
         <h1>{CHESS_TITLE}</h1>
         <p className="meta">
           <span className={`status socket-${socketStatus}`}>socket: {socketStatus}</span>
+          <span className={`status stockfish-${stockfish.status}`}>
+            {STOCKFISH_STATUS_PREFIX}
+            {stockfish.status}
+          </span>
           <span className={`status game-${game.status}`}>game: {game.status}</span>
           <span>
             {SIDE_TO_MOVE_LABEL}: {turn}

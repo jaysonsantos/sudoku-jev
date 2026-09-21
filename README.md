@@ -1,6 +1,6 @@
 # sudoku-jev
 
-A sudoku game (and a two-player chess game at `/chess`) that an AI decision model plays. The browser makes a random puzzle and opens a websocket. A click on **Solve** starts the loop. The backend sends the board and every legal placement to the TypeSafe Jev model through OpenRouter. Jev picks one placement. The browser applies it, reports the new board, and the loop runs until the puzzle is solved or the model makes three mistakes.
+A sudoku game (and Jev vs Stockfish chess at `/chess`) that an AI decision model plays. The browser makes a random puzzle and opens a websocket. A click on **Solve** starts the loop. The backend sends the board and every legal placement to the TypeSafe Jev model through OpenRouter. Jev picks one placement. The browser applies it, reports the new board, and the loop runs until the puzzle is solved or the model makes three mistakes.
 
 Jev is a decision model, not a text model. It rates a list of options and returns one choice with probabilities. It does not compute, so the code does the sudoku rules and gives Jev only legal moves. Each option carries the digits that fit in its cell. Jev decides between them.
 
@@ -66,12 +66,13 @@ Layout: `shared/` holds the sudoku and chess rules and message types, `backend/`
 
 ## Chess
 
-`/chess` is the same SPA and the same `/ws` session. One shared chessboard.js board shows the same position to both sides. White and Black each have a color label and a countdown clock on that board. The side to move asks Jev for its play.
+`/chess` is the same SPA and the same `/ws` session. One shared chessboard.js board shows the same position to both sides. Each **New game** (and the first load) randomly assigns Jev one color and Stockfish the other. Clocks still tick only for the side to move.
 
-1. **Play** starts the loop. The browser sends `{ type: "state", game: "chess", fen, rejected, status }`.
+1. **Play** starts the loop. On Jev's turn the browser sends `{ type: "state", game: "chess", fen, rejected, status }`. Stockfish's turn stays in the browser and does not open a `/ws` ask.
 2. The backend lists legal UCIs with chess.js, sorts them, and keeps at most 150. Option ids look like `uci_e2e4`.
 3. Jev returns the most probable play. The backend checks the pick is legal. An illegal or unknown pick is dropped and the same position is asked once more. A second failure is an error.
-4. The browser applies a legal move on the shared board and the other color becomes the side to move.
+4. Stockfish runs as the lite single-thread WASM build (`stockfish` npm, loaded only on `/chess`). A legal UCI is applied locally. An illegal UCI is retried a small number of times, then the game pauses.
+5. The browser applies a legal move on the shared board and the other color becomes the side to move.
 
 ## Cloudflare
 

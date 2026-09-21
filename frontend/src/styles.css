@@ -107,6 +107,10 @@ header h1 {
   font-weight: 700;
 }
 
+.status.stockfish-error {
+  color: #c02020;
+}
+
 .nav {
   display: flex;
   gap: 1rem;
