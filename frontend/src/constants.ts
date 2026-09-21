@@ -38,6 +38,8 @@ export const STOCKFISH_STATUS = {
 } as const;
 export type StockfishStatus = (typeof STOCKFISH_STATUS)[keyof typeof STOCKFISH_STATUS];
 export const STOCKFISH_STATUS_PREFIX = "stockfish: ";
+/** npm package published from https://github.com/nmrugg/stockfish.js */
+export const STOCKFISH_PACKAGE = "stockfish";
 export const STOCKFISH_ASSET_DIR = "stockfish";
 export const STOCKFISH_JS_FILE = "stockfish-19-lite-single.js";
 export const STOCKFISH_WASM_FILE = "stockfish-19-lite-single.wasm";

@@ -3,12 +3,17 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { STOCKFISH_ASSET_DIR, STOCKFISH_JS_FILE, STOCKFISH_WASM_FILE } from "./frontend/src/constants.ts";
+import {
+  STOCKFISH_ASSET_DIR,
+  STOCKFISH_JS_FILE,
+  STOCKFISH_PACKAGE,
+  STOCKFISH_WASM_FILE,
+} from "./frontend/src/constants.ts";
 
 // The backend port for `pnpm dev`. The websocket and the health route proxy to it.
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 const FRONTEND_DEV_PORT = 5173;
-const STOCKFISH_PACKAGE_JSON = "stockfish/package.json";
+const STOCKFISH_PACKAGE_JSON = `${STOCKFISH_PACKAGE}/package.json`;
 const STOCKFISH_BIN_DIR = "bin";
 const CONTENT_TYPE_JS = "text/javascript; charset=utf-8";
 const CONTENT_TYPE_WASM = "application/wasm";
@@ -32,7 +37,7 @@ function requestPath(url: string | undefined): string {
   return (url ?? "").split(QUERY_SEPARATOR)[0] ?? "";
 }
 
-/** Serves the lite single-thread engine on /chess only after the Worker is created. */
+/** Serves nmrugg/stockfish.js lite-single WASM on /chess only after the Worker is created. */
 function stockfishAssets(): Plugin {
   return {
     name: "stockfish-assets",
