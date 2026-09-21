@@ -35,6 +35,8 @@ export interface ChessJevDecision {
   confidence: number;
   options_considered: number;
   questions_asked: number;
+  /** OpenRouter USD cost for the request that produced this pick. */
+  cost?: number;
 }
 
 export function chessToState(fen: string, legalMoveCount: number): ChessBoardState {

@@ -90,11 +90,13 @@ test("JevClient.decideChess posts a chess request and maps the answer", async ()
           confidence: 1,
         },
       },
+      usage: { input_tokens: 10, output_tokens: 2, cost: 0.0041 },
     };
     return new Response(JSON.stringify(body), { status: 200 });
   };
   const client = new JevClient({ apiKey: "k", url: "https://example.test/decisions", model: "m", fetchImpl });
   const decision = await client.decideChess(STARTING_FEN, moves);
   assert.equal(decision?.move.uci, "e2e4");
+  assert.equal(decision?.cost, 0.0041);
   assert.equal(seen[0]?.body.state.game, GAME_KIND.chess);
 });

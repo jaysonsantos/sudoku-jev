@@ -111,6 +111,14 @@ header h1 {
   color: #c02020;
 }
 
+.match-cost {
+  font-variant-numeric: tabular-nums;
+}
+
+.match-cost.final {
+  font-weight: 700;
+}
+
 .nav {
   display: flex;
   gap: 1rem;

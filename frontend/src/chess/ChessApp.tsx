@@ -15,11 +15,17 @@ import { NAV_PAGE, Nav } from "../components/Nav.tsx";
 import {
   ASKS_JEV_SUFFIX,
   ASKS_STOCKFISH_SUFFIX,
+  CHESS_CLIENT_ERROR,
   CHESS_PLAYER,
   CHESS_TITLE,
+  MATCH_COST_LABEL,
   MAX_LOG_LINES,
+  NEW_GAME_PREFIX,
+  PAUSED_LABEL,
   PERCENT,
   PLAY_MATCH_LABEL,
+  REJECTED_MOVE_PREFIX,
+  SERVER_PREFIX,
   SHARED_BOARD_LABEL,
   SHARED_FEN_LABEL,
   SIDE_TO_MOVE_LABEL,
@@ -36,11 +42,15 @@ import { SOCKET_STATUS, useJevSocket } from "../useJevSocket.ts";
 import { ChessBoard } from "./ChessBoard.tsx";
 import type { ChessGame } from "./chessGame.ts";
 import {
+  addMatchCost,
+  applyChessDecision,
   applyOrRejectChessDecision,
   chessActorToMove,
   chessAskKey,
   decideStockfishMove,
+  formatMatchCost,
   formatPlayerColorLabel,
+  formatUsd,
   newChessGame,
   pairingSummary,
   playerTurn,
@@ -106,16 +116,16 @@ export function ChessApp() {
       switch (message.type) {
         case MESSAGE_TYPE.decision: {
           if (!isChessDecisionMessage(message)) {
-            log("error", "server sent a sudoku decision on /chess");
+            log("error", CHESS_CLIENT_ERROR.sudokuDecision);
             return;
           }
           if (!shouldAskJev(current)) {
-            log("error", "ignored a Jev decision on Stockfish's turn");
+            log("error", CHESS_CLIENT_ERROR.jevOnStockfishTurn);
             return;
           }
-          const next = applyOrRejectChessDecision(current, message.move);
+          const next = addMatchCost(applyOrRejectChessDecision(current, message.move), message.cost);
           if (next.fen === current.fen) {
-            log("error", `rejected illegal move ${message.move.uci}`);
+            log("error", `${REJECTED_MOVE_PREFIX}${message.move.uci}`);
             setGame(next);
             return;
           }
@@ -123,14 +133,19 @@ export function ChessApp() {
           log("move", `${message.move.san} (${message.move.uci}) for ${next.lastColor} (${stats})`);
           if (next.status !== GAME_STATUS.playing && next.reason !== null) {
             log("info", next.reason);
+            log("info", formatMatchCost(next.cost));
           }
           setGame(next);
           break;
         }
         case MESSAGE_TYPE.finished:
-          log("info", `server: ${message.reason}`);
+          log("info", `${SERVER_PREFIX}${message.reason}`);
           if (message.status !== current.status) {
-            setGame({ ...current, status: message.status, reason: message.reason });
+            const next = { ...current, status: message.status, reason: message.reason };
+            if (current.status === GAME_STATUS.playing) {
+              log("info", formatMatchCost(next.cost));
+            }
+            setGame(next);
           }
           break;
         case MESSAGE_TYPE.error:
@@ -183,25 +198,30 @@ export function ChessApp() {
         log("info", `${color}${ASKS_STOCKFISH_SUFFIX}`);
         decideStockfishMove(latest, stockfish.bestMove, STOCKFISH_ILLEGAL_RETRIES)
           .then((result) => {
-            if (!playingRef.current || chessAskKey(gameRef.current) !== askKey) {
+            const now = gameRef.current;
+            if (!playingRef.current || chessAskKey(now) !== askKey) {
+              setWaiting(false);
               return;
             }
             if (!result.ok) {
-              setGame(result.game);
+              setGame({ ...now, rejected: result.game.rejected });
               setPlaying(false);
               setWaiting(false);
               log("error", STOCKFISH_ERROR.illegalAfterRetry);
               return;
             }
-            log("move", `${result.move.san} (${result.move.uci}) for ${result.game.lastColor} (${STOCKFISH_LOG_TAG})`);
-            if (result.game.status !== GAME_STATUS.playing && result.game.reason !== null) {
-              log("info", result.game.reason);
+            const next = applyChessDecision(now, result.move);
+            log("move", `${result.move.san} (${result.move.uci}) for ${next.lastColor} (${STOCKFISH_LOG_TAG})`);
+            if (next.status !== GAME_STATUS.playing && next.reason !== null) {
+              log("info", next.reason);
+              log("info", formatMatchCost(next.cost));
             }
-            setGame(result.game);
+            setGame(next);
             setWaiting(false);
           })
           .catch((error: unknown) => {
             if (!playingRef.current || chessAskKey(gameRef.current) !== askKey) {
+              setWaiting(false);
               return;
             }
             setPlaying(false);
@@ -217,6 +237,7 @@ export function ChessApp() {
   useEffect(() => {
     if (!playing) {
       stockfish.stop();
+      setWaiting(false);
     }
   }, [playing, stockfish.stop]);
 
@@ -229,6 +250,7 @@ export function ChessApp() {
         const next = tickChessGame(current, CHESS_CLOCK_TICK_MS);
         if (next.status !== current.status && next.reason !== null) {
           log("info", next.reason);
+          log("info", formatMatchCost(next.cost));
         }
         return next;
       });
@@ -248,14 +270,15 @@ export function ChessApp() {
     setLines([]);
     setWaiting(false);
     setPlaying(false);
-    log("info", `new game: ${pairingSummary(next)}`);
+    log("info", `${NEW_GAME_PREFIX}${pairingSummary(next)}`);
   };
 
   const togglePlay = (): void => {
     if (playing) {
       setPlaying(false);
+      setWaiting(false);
       stockfish.stop();
-      log("info", "paused");
+      log("info", PAUSED_LABEL);
       return;
     }
     setPlaying(true);
@@ -283,6 +306,9 @@ export function ChessApp() {
           <span>
             {SIDE_TO_MOVE_LABEL}: {turn}
           </span>
+          <span className={game.status === GAME_STATUS.playing ? "match-cost" : "match-cost final"}>
+            {formatMatchCost(game.cost)}
+          </span>
           <button type="button" onClick={togglePlay} disabled={!canPlay}>
             {playing ? "Pause" : "Play"}
           </button>
@@ -304,6 +330,10 @@ export function ChessApp() {
             <div>
               <dt>{SIDE_TO_MOVE_LABEL}</dt>
               <dd>{turn}</dd>
+            </div>
+            <div>
+              <dt>{MATCH_COST_LABEL}</dt>
+              <dd>{formatUsd(game.cost)}</dd>
             </div>
           </dl>
         </section>
