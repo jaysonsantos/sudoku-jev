@@ -39,6 +39,12 @@ export interface ChessJevDecision {
   cost?: number;
 }
 
+/** One billed Jev chess call. `decision` is null when the pick is unusable. */
+export interface ChessDecideResult {
+  decision: ChessJevDecision | null;
+  cost: number;
+}
+
 export function chessToState(fen: string, legalMoveCount: number): ChessBoardState {
   const color = sideToMove(fen);
   return {

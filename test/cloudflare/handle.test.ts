@@ -88,11 +88,14 @@ test("respondToSocketText answers a chess state", async () => {
       throw new Error("chess test should not ask sudoku");
     },
     decideChess: async () => ({
-      move: { uci: "e2e4", san: "e4", from: "e2", to: "e4" },
-      probability: 1,
-      confidence: 1,
-      options_considered: 20,
-      questions_asked: 1,
+      decision: {
+        move: { uci: "e2e4", san: "e4", from: "e2", to: "e4" },
+        probability: 1,
+        confidence: 1,
+        options_considered: 20,
+        questions_asked: 1,
+      },
+      cost: 0,
     }),
   };
   const answer = await respondToSocketText(

@@ -183,6 +183,24 @@ export function shouldAskStockfish(game: ChessGame): boolean {
   return chessActorToMove(game) === CHESS_PLAYER.stockfish;
 }
 
+/**
+ * Pause cancels a Stockfish search, so waiting can clear.
+ * An in-flight Jev /ws ask stays marked so Play cannot bill the same position twice.
+ */
+export function retainJevAskOnPause(game: ChessGame): boolean {
+  return shouldAskJev(game);
+}
+
+/** Adds billed Jev cost even when the move is stale or the game is no longer playing. */
+export function applyJevDecisionMessage(
+  game: ChessGame,
+  move: ChessMove,
+  cost: number | undefined,
+): ChessGame {
+  const next = shouldAskJev(game) ? applyOrRejectChessDecision(game, move) : game;
+  return addMatchCost(next, cost);
+}
+
 export async function decideStockfishMove(
   game: ChessGame,
   ask: (fen: string) => Promise<string | null>,

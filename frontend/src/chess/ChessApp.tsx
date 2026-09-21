@@ -42,9 +42,8 @@ import { SOCKET_STATUS, useJevSocket } from "../useJevSocket.ts";
 import { ChessBoard } from "./ChessBoard.tsx";
 import type { ChessGame } from "./chessGame.ts";
 import {
-  addMatchCost,
   applyChessDecision,
-  applyOrRejectChessDecision,
+  applyJevDecisionMessage,
   chessActorToMove,
   chessAskKey,
   decideStockfishMove,
@@ -54,6 +53,7 @@ import {
   newChessGame,
   pairingSummary,
   playerTurn,
+  retainJevAskOnPause,
   shouldAskJev,
   shouldAskStockfish,
   tickChessGame,
@@ -119,11 +119,16 @@ export function ChessApp() {
             log("error", CHESS_CLIENT_ERROR.sudokuDecision);
             return;
           }
+          const next = applyJevDecisionMessage(current, message.move, message.cost);
           if (!shouldAskJev(current)) {
-            log("error", CHESS_CLIENT_ERROR.jevOnStockfishTurn);
+            if (current.status === GAME_STATUS.playing) {
+              log("error", CHESS_CLIENT_ERROR.jevOnStockfishTurn);
+            } else if (next.cost !== current.cost) {
+              log("info", formatMatchCost(next.cost));
+            }
+            setGame(next);
             return;
           }
-          const next = addMatchCost(applyOrRejectChessDecision(current, message.move), message.cost);
           if (next.fen === current.fen) {
             log("error", `${REJECTED_MOVE_PREFIX}${message.move.uci}`);
             setGame(next);
@@ -237,7 +242,9 @@ export function ChessApp() {
   useEffect(() => {
     if (!playing) {
       stockfish.stop();
-      setWaiting(false);
+      if (!retainJevAskOnPause(gameRef.current)) {
+        setWaiting(false);
+      }
     }
   }, [playing, stockfish.stop]);
 
@@ -276,7 +283,9 @@ export function ChessApp() {
   const togglePlay = (): void => {
     if (playing) {
       setPlaying(false);
-      setWaiting(false);
+      if (!retainJevAskOnPause(gameRef.current)) {
+        setWaiting(false);
+      }
       stockfish.stop();
       log("info", PAUSED_LABEL);
       return;

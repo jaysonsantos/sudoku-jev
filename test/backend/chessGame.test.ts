@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ChessDecideClient } from "../../backend/src/chessGame.ts";
 import { answerChessState, parseChessStateMessage } from "../../backend/src/chessGame.ts";
-import type { ChessJevDecision } from "../../backend/src/chessJev.ts";
+import type { ChessDecideResult, ChessJevDecision } from "../../backend/src/chessJev.ts";
 import { type DecisionResponse, JevClient } from "../../backend/src/jev.ts";
 import type { ChessMoveOption, ChessStateMessage } from "../../shared/src/index.ts";
 import {
@@ -37,6 +37,14 @@ function decisionFor(uci: string, san: string, cost = 0): ChessJevDecision {
   };
 }
 
+function resultFor(uci: string, san: string, cost = 0): ChessDecideResult {
+  return { decision: decisionFor(uci, san, cost), cost };
+}
+
+function emptyResult(cost: number): ChessDecideResult {
+  return { decision: null, cost };
+}
+
 test("parseChessStateMessage accepts a valid chess state and rejects garbage", () => {
   const parsed = parseChessStateMessage(JSON.stringify(state()));
   assert.equal(parsed.game, GAME_KIND.chess);
@@ -48,7 +56,7 @@ test("parseChessStateMessage accepts a valid chess state and rejects garbage", (
 
 test("answerChessState maps a legal model choice to a chess decision", async () => {
   const client: ChessDecideClient = {
-    decideChess: async () => decisionFor("e2e4", "e4", 0.0123),
+    decideChess: async () => resultFor("e2e4", "e4", 0.0123),
   };
   const answer = await answerChessState(client, state());
   assert.ok(isChessDecisionMessage(answer));
@@ -66,9 +74,9 @@ test("answerChessState re-rolls a wrong-side pick that was not in the offered se
     decideChess: async (_fen, moves: ChessMoveOption[]) => {
       seen.push(moves.map((move) => move.uci));
       if (seen.length === 1) {
-        return decisionFor("d8e7", "Qe7+", 0.01);
+        return resultFor("d8e7", "Qe7+", 0.01);
       }
-      return decisionFor("e2e4", "e4", 0.02);
+      return resultFor("e2e4", "e4", 0.02);
     },
   };
   const answer = await answerChessState(client, state());
@@ -89,9 +97,9 @@ test("answerChessState re-rolls once after an illegal pick then returns a legal 
     decideChess: async (_fen, moves: ChessMoveOption[]) => {
       seen.push(moves.map((move) => move.uci));
       if (seen.length === 1) {
-        return decisionFor("a1a1", "??");
+        return resultFor("a1a1", "??");
       }
-      return decisionFor("e2e4", "e4");
+      return resultFor("e2e4", "e4");
     },
   };
   const answer = await answerChessState(client, state());
@@ -137,9 +145,30 @@ test("answerChessState re-asks through Jev when the choice is a black move for w
   assert.deepEqual(choices, ["uci_d8e7", "uci_e2e4"]);
 });
 
+test("answerChessState adds cost from a null first pick before the legal retry", async () => {
+  const seen: number[] = [];
+  const client: ChessDecideClient = {
+    decideChess: async () => {
+      seen.push(seen.length);
+      if (seen.length === 1) {
+        return emptyResult(0.01);
+      }
+      return resultFor("e2e4", "e4", 0.02);
+    },
+  };
+  const answer = await answerChessState(client, state());
+  assert.ok(isChessDecisionMessage(answer));
+  if (isChessDecisionMessage(answer)) {
+    assert.equal(answer.move.uci, "e2e4");
+    assert.equal(answer.rerolls, 1);
+    assert.equal(answer.cost, 0.03);
+  }
+  assert.equal(seen.length, 2);
+});
+
 test("answerChessState errors after one failed re-roll", async () => {
   const client: ChessDecideClient = {
-    decideChess: async () => decisionFor("a1a1", "??"),
+    decideChess: async () => resultFor("a1a1", "??"),
   };
   const answer = await answerChessState(client, state());
   assert.equal(answer.type, MESSAGE_TYPE.error);

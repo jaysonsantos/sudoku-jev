@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   addMatchCost,
   applyChessDecision,
+  applyJevDecisionMessage,
   applyOrRejectChessDecision,
   assignChessPlayers,
   chessActorToMove,
@@ -14,6 +15,7 @@ import {
   newChessGame,
   pairingSummary,
   rejectChessMove,
+  retainJevAskOnPause,
   shouldAskJev,
   shouldAskStockfish,
   tickChessGame,
@@ -27,7 +29,14 @@ import {
   STEP_DELAY_MS,
   STOCKFISH_ILLEGAL_RETRIES,
 } from "../../frontend/src/constants.ts";
-import { CHESS_CLOCK_TICK_MS, CHESS_COLOR, GAME_KIND, GAME_STATUS, STARTING_FEN } from "../../shared/src/index.ts";
+import {
+  CHESS_CLOCK_MS,
+  CHESS_CLOCK_TICK_MS,
+  CHESS_COLOR,
+  GAME_KIND,
+  GAME_STATUS,
+  STARTING_FEN,
+} from "../../shared/src/index.ts";
 
 const E2E4 = { uci: "e2e4", san: "e4", from: "e2", to: "e4" } as const;
 const BLACK_QUEEN_TO_E7 = { uci: "d8e7", san: "Qe7+", from: "d8", to: "e7" } as const;
@@ -180,6 +189,42 @@ test("addMatchCost accumulates Jev USD and Stockfish adds nothing", () => {
   const afterStockfish = applyChessDecision(withCost, E2E4);
   assert.equal(afterStockfish.cost, 0.0123);
   assert.equal(addMatchCost(withCost, undefined).cost, 0.0123);
+});
+
+test("retainJevAskOnPause keeps an in-flight Jev ask and clears Stockfish", () => {
+  const jevWhite = newChessGame(() => 0);
+  assert.equal(retainJevAskOnPause(jevWhite), true);
+  const stockfishWhite = newChessGame(() => 1);
+  assert.equal(retainJevAskOnPause(stockfishWhite), false);
+  const timedOut = tickChessGame(jevWhite, CHESS_CLOCK_MS);
+  assert.equal(retainJevAskOnPause(timedOut), false);
+});
+
+test("applyJevDecisionMessage still adds cost after a clock timeout", () => {
+  const game = newChessGame(() => 0);
+  const timedOut = tickChessGame(game, CHESS_CLOCK_MS);
+  assert.notEqual(timedOut.status, GAME_STATUS.playing);
+  assert.equal(shouldAskJev(timedOut), false);
+  const next = applyJevDecisionMessage(timedOut, E2E4, 0.0123);
+  assert.equal(next.fen, timedOut.fen);
+  assert.equal(next.status, timedOut.status);
+  assert.equal(next.cost, 0.0123);
+});
+
+test("applyJevDecisionMessage applies a live Jev move with its cost", () => {
+  const game = newChessGame(() => 0);
+  const next = applyJevDecisionMessage(game, E2E4, 0.01);
+  assert.notEqual(next.fen, game.fen);
+  assert.equal(next.lastMove?.uci, E2E4.uci);
+  assert.equal(next.cost, 0.01);
+});
+
+test("applyJevDecisionMessage adds cost on Stockfish's turn without applying the move", () => {
+  const game = newChessGame(() => 1);
+  const next = applyJevDecisionMessage(game, E2E4, 0.0123);
+  assert.equal(next.fen, game.fen);
+  assert.equal(next.lastMove, null);
+  assert.equal(next.cost, 0.0123);
 });
 
 test("formatMatchCost prints small OpenRouter amounts", () => {
