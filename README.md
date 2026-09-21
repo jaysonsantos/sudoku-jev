@@ -51,7 +51,7 @@ Every setting is a long flag, an environment variable, and a default. A flag win
 2. **Solve** starts the loop. After every change the browser sends `{ type: "state", board, rejected, mistakes, status }` on `/ws`.
 3. The backend computes the legal placements, drops the rejected ones, and asks Jev one `choice` question per batch of 255 options. Option ids look like `row_3_col_7_value_5`.
 4. The backend answers `{ type: "decision", move, probability, confidence, ... }`.
-5. The browser checks the move against the solution. A right value fills the cell. A wrong value counts as a mistake and joins `rejected`. Three mistakes lose the game. **Pause** stops the loop, **New game** makes a new puzzle.
+5. The browser checks the move against the solution. A right value fills the cell. A wrong value counts as a mistake and joins `rejected`. Three mistakes lose the game. Each Jev decision carries OpenRouter `usage.cost`. The UI shows `puzzle cost: $0.0123` and a final total when the puzzle is solved or lost. **Pause** stops the loop, **New game** makes a new puzzle. The header nav links to the [repository on `main`](https://github.com/jaysonsantos/sudoku-jev/tree/main).
 
 ## Develop
 

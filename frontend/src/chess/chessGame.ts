@@ -16,17 +16,14 @@ import type { ChessPlayer } from "../constants.ts";
 import {
   CHESS_PLAYER,
   CHESS_PLAYER_PAIRING_SPLIT,
-  COST_CURRENCY,
-  COST_DECIMALS,
-  COST_LABEL_SEPARATOR,
-  COST_SMALL_DECIMALS,
-  COST_SMALL_THRESHOLD,
-  MATCH_COST_LABEL,
   PAIRING_VS,
   PLAYER_COLOR_SEPARATOR,
   PLAYER_LABEL,
   ZERO_COST,
 } from "../constants.ts";
+import { addGameCost } from "../cost.ts";
+
+export { decisionCost, formatMatchCost, formatUsd } from "../cost.ts";
 
 const ASK_KEY_SEPARATOR = "\0";
 
@@ -79,28 +76,8 @@ export function newChessGame(random: () => number = Math.random): ChessGame {
   };
 }
 
-export function decisionCost(value: number | undefined): number {
-  return typeof value === "number" && Number.isFinite(value) && value > ZERO_COST ? value : ZERO_COST;
-}
-
 export function addMatchCost(game: ChessGame, cost: number | undefined): ChessGame {
-  const extra = decisionCost(cost);
-  if (extra === ZERO_COST) {
-    return game;
-  }
-  return { ...game, cost: game.cost + extra };
-}
-
-export function formatUsd(amount: number): string {
-  if (amount <= ZERO_COST) {
-    return `${COST_CURRENCY}${ZERO_COST}`;
-  }
-  const decimals = amount < COST_SMALL_THRESHOLD ? COST_SMALL_DECIMALS : COST_DECIMALS;
-  return `${COST_CURRENCY}${amount.toFixed(decimals)}`;
-}
-
-export function formatMatchCost(amount: number): string {
-  return `${MATCH_COST_LABEL}${COST_LABEL_SEPARATOR}${formatUsd(amount)}`;
+  return addGameCost(game, cost);
 }
 
 export function tickChessGame(game: ChessGame, elapsedMs: number): ChessGame {

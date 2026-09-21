@@ -50,6 +50,8 @@ A sudoku game that the TypeSafe Jev decision model plays through OpenRouter.
 - Chess option ids are `uci_e2e4`. The backend offers at most 150 legal UCIs (sorted, then sliced). Jev's pick is checked with chess.js. An illegal or unknown pick is dropped and the same position is asked once more. A second failure is an error.
 - On `/chess` the browser randomly assigns Jev one color and Stockfish the other. Only Jev's turn uses `/ws`. Stockfish is [nmrugg/stockfish.js](https://github.com/nmrugg/stockfish.js) lite-single WASM and must not run as a native binary on the Worker.
 - Chess decisions may include optional `cost` (OpenRouter USD). The client sums every billed Jev call, including a null first pick before retry and a response that arrives after the clock flags. Stockfish is `$0`. When the game ends the UI shows `match cost: $0.0123`.
+- Sudoku decisions may include the same optional `cost`. The client sums every billed Jev placement. The UI shows `puzzle cost: $0.0123` (same USD format) and a final total when the puzzle is solved or lost.
+- The shared nav links to the repository tree on `main`: `https://github.com/jaysonsantos/sudoku-jev/tree/main`.
 
 ## Cloudflare
 
