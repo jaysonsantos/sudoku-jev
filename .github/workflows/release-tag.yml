@@ -20,7 +20,7 @@ jobs:
     name: tag
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # A deploy key, so the pushed tag starts release.yml. GITHUB_TOKEN starts no workflow.
