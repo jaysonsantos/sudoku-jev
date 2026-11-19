@@ -15,8 +15,8 @@ importers:
         specifier: 1.4.0
         version: 1.4.0
       jquery:
-        specifier: 3.7.1
-        version: 3.7.1
+        specifier: 3.8.0
+        version: 3.8.0
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -34,8 +34,8 @@ importers:
         specifier: 5.20260919.1
         version: 5.20260919.1
       '@types/jquery':
-        specifier: 3.5.33
-        version: 3.5.33
+        specifier: 3.5.34
+        version: 3.5.34
       '@types/node':
         specifier: 26.6.1
         version: 26.6.1
@@ -599,8 +599,8 @@ packages:
   '@speed-highlight/core@1.2.24':
     resolution: {integrity: sha512-qeW2e1l78afw8VhRPfPQ1Gjj+KU5XFQ/OFV5ti6eTa9bruO7mJyZtA4vw0ofqmA3tKCkROE9xLk3VZoeRc98nw==}
 
-  '@types/jquery@3.5.33':
-    resolution: {integrity: sha512-SeyVJXlCZpEki5F0ghuYe+L+PprQta6nRZqhONt9F13dWBtR/ftoaIbdRQ7cis7womE+X2LKhsDdDtkkDhJS6g==}
+  '@types/jquery@3.5.34':
+    resolution: {integrity: sha512-3m3939S3erqmTLJANS/uy0B6V7BorKx7RorcGZVjZ62dF5PAGbKEDZK1CuLtKombJkFA2T1jl8LAIIs7IV6gBQ==}
 
   '@types/node@26.6.1':
     resolution: {integrity: sha512-VqGJBMCtdhqkBUCcBLvywI0NJ+KLuVzgNnlBUNFOQjqVxzo2lxLUNg1DSey8+u2u6ktswSAxg+s68QLzWHNOuA==}
@@ -794,8 +794,8 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  jquery@3.7.1:
-    resolution: {integrity: sha512-m4avr8yL8kmFN8psrbFFFmB/If14iN5o9nw/NgnnM+kybDJpRsAynV2BsfpTYrTRysYUdADVD7CkUUizgkpLfg==}
+  jquery@3.8.0:
+    resolution: {integrity: sha512-AOYt0viqPysMUTq45O8gF9DuOnBT3Il/8WtM/TT8z/2QeGsZ70ImwSJtNFxznn2R71v8yIgaEunOGo82OY/f0g==}
 
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
@@ -1089,7 +1089,7 @@ snapshots:
 
   '@chrisoakman/chessboardjs@1.0.0':
     dependencies:
-      jquery: 3.7.1
+      jquery: 3.8.0
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
@@ -1383,7 +1383,7 @@ snapshots:
 
   '@speed-highlight/core@1.2.24': {}
 
-  '@types/jquery@3.5.33':
+  '@types/jquery@3.5.34':
     dependencies:
       '@types/sizzle': 2.3.10
 
@@ -1518,7 +1518,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  jquery@3.7.1: {}
+  jquery@3.8.0: {}
 
   kleur@4.1.5: {}
 
